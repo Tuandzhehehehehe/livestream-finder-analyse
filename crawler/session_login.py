@@ -34,7 +34,11 @@ def login(platform: str):
     with sync_playwright() as p:
         context = launch_context(p, platform, headless=False)
         page = context.pages[0] if context.pages else context.new_page()
-        page.goto(LOGIN_URLS[platform], timeout=60000)
+
+        try:
+            page.goto(LOGIN_URLS[platform], timeout=60000)
+        except Exception:
+            pass
 
         print(
             f"\nLog in to {platform} in the opened browser window, "
@@ -42,7 +46,13 @@ def login(platform: str):
         )
         input()
 
-        context.close()
+        # The session is persisted to the profile dir as you browse; closing may
+        # raise if you already closed the window, which is harmless.
+        try:
+            context.close()
+        except Exception:
+            pass
+
         print("Session saved.")
 
 
