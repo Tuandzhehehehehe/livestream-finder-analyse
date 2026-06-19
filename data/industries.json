@@ -1,0 +1,32 @@
+{
+  "cosmetic": {
+    "related_topics": [
+      "beauty",
+      "makeup",
+      "skincare",
+      "serum",
+      "lipstick",
+      "foundation",
+      "facial"
+    ]
+  },
+
+  "crm": {
+    "related_topics": [
+      "sales",
+      "lead generation",
+      "customer success",
+      "pipeline",
+      "saas"
+    ]
+  },
+
+  "gaming": {
+    "related_topics": [
+      "game",
+      "esports",
+      "stream",
+      "tournament"
+    ]
+  }
+}
