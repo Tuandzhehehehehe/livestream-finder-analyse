@@ -281,9 +281,11 @@ def crawl_livestreams_with_ai(
                     return platform_name, cached, None
 
             print(f"[AI Crawl Tool] Searching {platform_name}...")
-            # try to pass optional headless kwarg to crawler if supported
+            # try to pass optional headless kwarg to crawler if supported.
+            # X and TikTok block anonymous scraping, so they always need a
+            # real (logged-in) browser regardless of the global flag.
             crawler_opts = {}
-            if kwargs.get("use_headless", False):
+            if platform_name in ("x", "tiktok") or kwargs.get("use_headless", False):
                 crawler_opts["use_headless"] = True
 
             try:

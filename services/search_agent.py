@@ -315,7 +315,7 @@ def search_livestreams(
             crawl_x_live(
                 queries,
                 limit,
-                use_headless=use_headless,
+                use_headless=True,
             )
         )
 
@@ -343,7 +343,7 @@ def search_livestreams(
             crawl_tiktok_live(
                 queries,
                 limit,
-                use_headless=use_headless,
+                use_headless=True,
             )
         )
 

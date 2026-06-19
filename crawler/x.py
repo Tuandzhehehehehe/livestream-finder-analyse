@@ -1,21 +1,30 @@
-import json
-import re
+"""X (Twitter) crawler.
+
+X redirects anonymous visitors away from search to a login page, so we drive a
+real, logged-in Chromium via Playwright and read the JSON that X's own
+``SearchTimeline`` GraphQL endpoint returns instead of scraping HTML.
+
+Run ``python -m crawler.session_login x`` once to create the session.
+"""
+
 import time
 from urllib.parse import quote_plus
 
 import requests
 from bs4 import BeautifulSoup
 
+from crawler._browser import DEFAULT_USER_AGENT, launch_context
+
 headers = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
+    "User-Agent": DEFAULT_USER_AGENT,
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
+# Browser-based crawling is slow; cap how many query variants we visit per run.
+MAX_KEYWORDS = 4
 
-def build_event(title, url, keyword, description=""):
+
+def build_event(title, url, keyword, description="", create_time=""):
     return {
         "title": title,
         "platform": "X",
@@ -23,11 +32,137 @@ def build_event(title, url, keyword, description=""):
         "description": description,
         "keyword": keyword,
         "status": "LIVE",
-        "start_time": "",
-        "scheduled_start_time": "",
-        "actual_start_time": "",
+        "start_time": create_time,
+        "scheduled_start_time": create_time,
+        "actual_start_time": create_time,
         "actual_end_time": "",
     }
+
+
+def _find_tweets(node, found):
+    """Recursively collect tweet ``result`` objects from a GraphQL JSON tree."""
+
+    if isinstance(node, dict):
+        typename = node.get("__typename")
+        if typename in ("Tweet", "TweetWithVisibilityResults"):
+            tweet = node.get("tweet", node)
+            if isinstance(tweet, dict) and tweet.get("legacy"):
+                found.append(tweet)
+        for value in node.values():
+            _find_tweets(value, found)
+    elif isinstance(node, list):
+        for value in node:
+            _find_tweets(value, found)
+
+
+def _screen_name(tweet):
+    core = tweet.get("core") or {}
+    user = core.get("user_results") or {}
+    result = user.get("result") or {}
+    legacy = result.get("legacy") or {}
+    return (
+        legacy.get("screen_name")
+        or (result.get("core") or {}).get("screen_name")
+        or ""
+    )
+
+
+def _normalize_tweet(tweet, keyword):
+    legacy = tweet.get("legacy") or {}
+    tweet_id = tweet.get("rest_id") or legacy.get("id_str")
+    screen_name = _screen_name(tweet)
+
+    if not tweet_id or not screen_name:
+        return None
+
+    text = legacy.get("full_text") or legacy.get("text") or ""
+    url = f"https://x.com/{screen_name}/status/{tweet_id}"
+    create_time = legacy.get("created_at") or ""
+
+    return build_event(
+        title=text or f"Post by @{screen_name}",
+        url=url,
+        keyword=keyword,
+        description=text,
+        create_time=create_time,
+    )
+
+
+def _looks_logged_out(page):
+    url = page.url.lower()
+    if "/login" in url or "/i/flow/login" in url or "onboarding" in url:
+        return True
+    try:
+        body = page.inner_text("body").lower()
+    except Exception:
+        return False
+    return "see what's happening" in body and "log in" in body
+
+
+def _crawl_headless(keywords, limit, seen_urls, events):
+    """Drive a logged-in browser and read X's SearchTimeline JSON responses."""
+
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        context = launch_context(p, "x", headless=True)
+        page = context.pages[0] if context.pages else context.new_page()
+
+        payloads = []
+
+        def on_response(response):
+            if "SearchTimeline" not in response.url:
+                return
+            try:
+                payloads.append(response.json())
+            except Exception:
+                pass
+
+        page.on("response", on_response)
+
+        # Browser crawling is slow, so cap how many query variants we visit.
+        for keyword in keywords[:MAX_KEYWORDS]:
+            query = quote_plus(f"{keyword} live")
+            url = f"https://x.com/search?q={query}&src=typed_query&f=live"
+            print(f"X SEARCH: {keyword}")
+            payloads.clear()
+
+            try:
+                page.goto(url, timeout=45000)
+                page.wait_for_timeout(3500)
+                for _ in range(2):
+                    page.mouse.wheel(0, 4000)
+                    page.wait_for_timeout(1500)
+            except Exception as e:
+                print(f"X navigation error: {e}")
+                continue
+
+            if not payloads and _looks_logged_out(page):
+                print(
+                    "X appears logged out. Run "
+                    "'python -m crawler.session_login x' once to create a "
+                    "session."
+                )
+                context.close()
+                return events
+
+            tweets = []
+            for payload in payloads:
+                _find_tweets(payload, tweets)
+
+            for tweet in tweets:
+                event = _normalize_tweet(tweet, keyword)
+                if not event or event["url"] in seen_urls:
+                    continue
+                seen_urls.add(event["url"])
+                events.append(event)
+                if len(events) >= limit:
+                    context.close()
+                    return events
+
+        context.close()
+
+    return events
 
 
 def normalize_url(href):
@@ -40,126 +175,60 @@ def normalize_url(href):
     return href
 
 
-def extract_text(article):
-    text_node = article.find("div", {"lang": True})
-    if text_node:
-        return text_node.get_text(" ", strip=True)
+def _crawl_requests(keywords, limit, seen_urls, events):
+    """Best-effort HTML fallback (usually blocked by the login wall)."""
 
-    spans = article.find_all("span")
-    text = " ".join(
-        span.get_text(" ", strip=True)
-        for span in spans
-        if span.get_text(strip=True)
-    )
-    return re.sub(r"\s+", " ", text).strip()
+    for keyword in keywords:
+        query = quote_plus(f"{keyword} live")
+        url = f"https://x.com/search?q={query}&src=typed_query"
+        print(f"X SEARCH (requests): {keyword}")
 
-
-def _fetch_html(url, use_headless=False):
-    if use_headless:
         try:
-            from playwright.sync_api import sync_playwright
-
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-                page.goto(url, timeout=30000)
-                html = page.content()
-                try:
-                    browser.close()
-                except Exception:
-                    pass
-                return html
+            response = requests.get(url, headers=headers, timeout=15)
         except Exception as e:
-            print(f"Playwright unavailable or error: {e}. Falling back to requests.")
+            print(f"X Request Error: {e}")
+            continue
 
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            return response.text
-    except Exception as e:
-        print(f"Requests fetch error: {e}")
+        if response.status_code != 200:
+            time.sleep(1)
+            continue
 
-    return ""
+        soup = BeautifulSoup(response.text, "html.parser")
+        for article in soup.find_all("article"):
+            link = article.find("a", href=True)
+            if not link:
+                continue
+            event_url = normalize_url(link.get("href"))
+            if not event_url or event_url in seen_urls:
+                continue
+            text = article.get_text(" ", strip=True)
+            if not text:
+                continue
+            seen_urls.add(event_url)
+            events.append(build_event(text, event_url, keyword))
+            if len(events) >= limit:
+                return events
+
+        time.sleep(1)
+
+    return events
 
 
-def crawl_x_live(keywords, limit=20, use_headless=False):
+def crawl_x_live(keywords, limit=20, use_headless=True):
+    """Search X for ``keywords`` and return a list of event dicts.
+
+    ``use_headless`` drives a real (logged-in) browser via Playwright, which is
+    required because X blocks anonymous search. When False, a best-effort HTTP
+    fallback is used (usually returns nothing while logged out).
+    """
+
     events = []
     seen_urls = set()
 
-    for keyword in keywords:
-        # try a range of query variants to increase hit rate on X
-        variants = [
-            keyword,
-            f"{keyword} live",
-            f"{keyword} livestream",
-            f"{keyword} stream",
-            f"{keyword} webinar",
-            f"{keyword} workshop",
-            f"{keyword} online event",
-            f"{keyword} talk",
-            f"{keyword} panel",
-            f"{keyword} ama",
-            f"{keyword} networking",
-        ]
+    if use_headless:
+        try:
+            return _crawl_headless(keywords, limit, seen_urls, events)
+        except Exception as e:
+            print(f"X headless error: {e}. Falling back to requests.")
 
-        for q in variants:
-            query = quote_plus(q)
-            url = f"https://x.com/search?q={query}&src=typed_query"
-
-            print(f"X SEARCH: {q}")
-
-            try:
-                html = _fetch_html(url, use_headless=use_headless)
-                if not html:
-                    continue
-
-                soup = BeautifulSoup(html, "html.parser")
-                # try to find tweet/article elements
-                articles = soup.find_all("article") or soup.find_all("div", attrs={"data-testid": "tweet"})
-
-                for article in articles:
-                    # attempt to find any anchor with href inside the article
-                    link = None
-                    for a in article.find_all("a", href=True):
-                        href = a.get("href")
-                        if href and ("/status/" in href or href.startswith("/")):
-                            link = a
-                            break
-
-                    if not link:
-                        # fallback: first anchor
-                        link = article.find("a", href=True)
-
-                    if not link:
-                        continue
-
-                    event_url = normalize_url(link["href"])
-
-                    if not event_url or event_url in seen_urls:
-                        continue
-
-                    title = extract_text(article)
-
-                    if not title:
-                        continue
-
-                    seen_urls.add(event_url)
-
-                    events.append(
-                        build_event(
-                            title,
-                            event_url,
-                            keyword,
-                            description="",
-                        )
-                    )
-
-                    if len(events) >= limit:
-                        return events
-
-            except Exception as e:
-                print(f"X Request Error: {e}")
-
-            time.sleep(1)
-
-    return events
+    return _crawl_requests(keywords, limit, seen_urls, events)
