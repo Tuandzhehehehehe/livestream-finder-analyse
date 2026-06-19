@@ -1,5 +1,6 @@
 
 import inspect
+import io
 import os
 import streamlit as st
 import pandas as pd
@@ -7,6 +8,8 @@ import pandas as pd
 from services.search_agent import search_livestreams
 from services.ai_crawl_tool import crawl_livestreams_with_ai
 from ai.classify import classify_event
+from ai.summarize import summarize_event
+from ai.comments import generate_comment
 from database.livestream_repository import save_event
 
 try:
@@ -73,6 +76,11 @@ Ecommerce Seller
             value=False,
         )
 
+        enable_engagement = st.checkbox(
+            "Tạo tóm tắt + bình luận AI (chậm hơn)",
+            value=False,
+        )
+
         use_ai_crawl = st.checkbox(
             "Sử dụng AI Crawl Tool",
             value=True,
@@ -130,6 +138,13 @@ Ecommerce Seller
             min_value=1,
             max_value=100,
             value=20,
+        )
+
+        min_score = st.slider(
+            "Điểm tối thiểu",
+            min_value=0,
+            max_value=100,
+            value=0,
         )
 
         st.write("")
@@ -316,6 +331,27 @@ if search_btn:
                         f"AI Error: {e}"
                     )
 
+            if enable_engagement:
+
+                try:
+
+                    event["summary"] = summarize_event(
+                        event.get("title", ""),
+                        event.get("description", ""),
+                    )
+
+                    event["suggested_comment"] = generate_comment(
+                        event.get("title", ""),
+                        event.get("description", ""),
+                        event.get("buyer_persona", ""),
+                    )
+
+                except Exception as e:
+
+                    st.warning(
+                        f"Engagement AI Error: {e}"
+                    )
+
             try:
 
                 save_event(
@@ -336,6 +372,13 @@ if search_btn:
         status_placeholder.success(
             f"✅ Hoàn thành {total} sự kiện"
         )
+
+    if min_score > 0:
+        results = [
+            event
+            for event in results
+            if (event.get("score") or 0) >= min_score
+        ]
 
     # =====================================
     # TABLE
@@ -387,7 +430,7 @@ if search_btn:
 
                 "Điểm",
 
-                "Priority",
+                "Ưu tiên",
 
                 "Scheduled Start",
 
@@ -403,6 +446,24 @@ if search_btn:
                 show_columns
             ],
             use_container_width=True,
+        )
+
+        # =====================================
+        # EXPORT EXCEL
+        # =====================================
+
+        excel_buffer = io.BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Leads")
+
+        st.download_button(
+            "⬇️ Tải Excel",
+            data=excel_buffer.getvalue(),
+            file_name="livestream_leads.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
         )
 
         # =====================================
@@ -424,6 +485,10 @@ if search_btn:
                 "Eventbrite": "🎟️",
 
                 "Twitch": "🎮",
+
+                "TikTok": "🎵",
+
+                "X": "🐦",
             }
 
             icon = platform_icon.get(
@@ -478,6 +543,11 @@ if search_btn:
                 st.write(
                     f"**Reason:** {event.get('reason')}"
                 )
+
+                if event.get("summary"):
+                    st.write(
+                        f"**Summary:** {event.get('summary')}"
+                    )
 
                 st.write(
                     f"**URL:** {event.get('url')}"
