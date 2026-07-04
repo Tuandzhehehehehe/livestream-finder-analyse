@@ -8,6 +8,7 @@ from services.search_agent import search_livestreams
 from services.ai_crawl_tool import crawl_livestreams_with_ai
 from ai.classify import classify_event
 from database.livestream_repository import save_event
+from crawler.session_login import login_interactive_gui
 
 try:
     from crawler.eventbrite import crawl_eventbrite
@@ -18,6 +19,60 @@ st.set_page_config(
     page_title="AI Livestream Finder",
     layout="wide",
 )
+
+# =====================================
+# SIDEBAR LOGIN MANAGEMENT
+# =====================================
+with st.sidebar:
+    st.write("## 🔑 Quản lý Đăng nhập")
+    st.info(
+        "Nhấn nút dưới để mở trình duyệt đăng nhập X, TikTok hoặc LinkedIn. "
+        "Hãy đăng nhập tài khoản của bạn, sau đó **đóng cửa sổ trình duyệt lại** để hoàn tất!"
+    )
+    
+    if st.button("Đăng nhập X (Twitter)", use_container_width=True):
+        with st.spinner("Đang mở trình duyệt đăng nhập X..."):
+            success, msg = login_interactive_gui("x")
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+                
+    if st.button("Đăng nhập TikTok", use_container_width=True):
+        with st.spinner("Đang mở trình duyệt đăng nhập TikTok..."):
+            success, msg = login_interactive_gui("tiktok")
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+    if st.button("Đăng nhập LinkedIn", use_container_width=True):
+        with st.spinner("Đang mở trình duyệt đăng nhập LinkedIn..."):
+            success, msg = login_interactive_gui("linkedin")
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+    st.write("---")
+    st.write("## 📊 Xuất dữ liệu")
+    excel_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
+    if os.path.exists(excel_path):
+        try:
+            with open(excel_path, "rb") as f:
+                excel_data = f.read()
+            st.download_button(
+                label="📥 Tải xuống file Excel",
+                data=excel_data,
+                file_name="livestreams.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="sidebar_download_excel"
+            )
+        except Exception as e:
+            st.error(f"Lỗi khi đọc file Excel: {e}")
+    else:
+        st.info("Chưa có dữ liệu Excel. Hãy thực hiện tìm kiếm.")
 
 st.title(
     "🎯 AI Multi-Platform Livestream Finder"
@@ -65,6 +120,7 @@ Ecommerce Seller
                 "ALL",
                 "LIVE",
                 "UPCOMING",
+                "COMPLETED"
             ],
         )
 
@@ -92,6 +148,8 @@ Ecommerce Seller
             "meetup",
             "x",
             "tiktok",
+            "linkedin",
+            "web",
         ]
 
         if crawl_eventbrite:
@@ -100,7 +158,7 @@ Ecommerce Seller
         selected_platforms = st.multiselect(
             "Nền tảng",
             platform_options,
-            default=platform_options,
+            default=["linkedin"] if "linkedin" in platform_options else platform_options,
         )
 
         enable_cache = st.checkbox(
@@ -116,7 +174,7 @@ Ecommerce Seller
         )
 
         use_headless = st.checkbox(
-            "Use headless browser for X/TikTok (Playwright)",
+            "Use headless browser for X/TikTok/LinkedIn",
             value=False,
         )
 
@@ -279,63 +337,95 @@ if search_btn:
 
     else:
 
-        for index, event in enumerate(
-            events
-        ):
+        if status_filter == "COMPLETED":
+            events = [e for e in events if e.get("status") == "COMPLETED" and e.get("actual_start_time") and e.get("actual_end_time")]
+        else:
+            events = [e for e in events if status_filter == "ALL" or e.get("status") == status_filter]
+        
+        total = len(events)
+        
+        if total == 0:
+            st.warning("Không tìm thấy livestream phù hợp với bộ lọc hiện tại.")
+        else:
+            for index, event in enumerate(events):
 
-            current = index + 1
+                current = index + 1
 
-            status_placeholder.info(
-                f"⏳ Đang xử lý {current}/{total}"
-            )
-
-            if enable_ai:
-
-                try:
-
-                    ai_result = (
-                        classify_event(
-                            event.get(
-                                "title",
-                                ""
-                            ),
-                            event.get(
-                                "description",
-                                ""
-                            ),
-                        )
-                    )
-
-                    event.update(
-                        ai_result
-                    )
-
-                except Exception as e:
-
-                    st.warning(
-                        f"AI Error: {e}"
-                    )
-
-            try:
-
-                save_event(
-                    event
+                status_placeholder.info(
+                    f"⏳ Đang xử lý {current}/{total}"
                 )
 
-            except Exception:
-                pass
+                if enable_ai:
+                    match_score = event.get("_match_score", 0)
+                    if match_score >= 15:
+                        try:
+                            ai_result = (
+                                classify_event(
+                                    event.get("title", ""),
+                                    event.get("description", ""),
+                                    goal
+                                )
+                            )
+                            event.update(ai_result)
+                            
+                            # Tích hợp tính năng tạo comment tự động
+                            from ai.comments import generate_comments
+                            comments = generate_comments(
+                                event.get("title", ""),
+                                event.get("description", ""),
+                                goal
+                            )
+                            if comments:
+                                event["suggested_comment"] = " | ".join(comments)
+                                
+                        except Exception as e:
+                            st.warning(f"AI Error: {e}")
+                    else:
+                        event["priority"] = "Low"
+                        event["interaction_tip"] = "Điểm liên quan thấp, bỏ qua đánh giá AI để tiết kiệm quota."
 
-            results.append(
-                event
-            )
+                    # Đảm bảo điểm hiển thị (score) không thấp hơn điểm nội bộ (_match_score)
+                    current_score = event.get("score", 0)
+                    match_score = event.get("_match_score", 0)
+                    if match_score > current_score:
+                        event["score"] = match_score
+                        
+                    if event.get("score", 0) >= 80:
+                        event["priority"] = "High"
+                    elif event.get("score", 0) >= 50:
+                        event["priority"] = "Medium"
 
-            progress.progress(
-                current / total
-            )
+                try:
+                    save_event(event)
+                except Exception:
+                    pass
+
+                results.append(event)
+
+                progress.progress(current / total)
 
         status_placeholder.success(
             f"✅ Hoàn thành {total} sự kiện"
         )
+
+    # =====================================
+    # GOOGLE DORKING (OSINT)
+    # =====================================
+    st.write("---")
+    st.write("## 🌍 Tự động mở rộng tìm kiếm trên Google (OSINT)")
+    st.info("Vì lý do bảo mật, các bot tự động thường bị Google chặn. Tuy nhiên, bạn có thể tự mình bấm vào các liên kết bên dưới")
+    st.markdown("### Hoặc tự tìm thủ công trên Google (Google Dorking)")
+    st.write("Dưới đây là các đường link tìm kiếm chuyên sâu để bạn tự click vào nếu muốn tìm tay:")
+
+    import urllib.parse
+    dork_query1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{goal}"')
+    dork_query2 = urllib.parse.quote_plus(f'site:linkedin.com/posts/ "{goal}" (livestream OR webinar OR "virtual event") ("register" OR "join")')
+    dork_query3 = urllib.parse.quote_plus(f'"{goal}" (livestream OR webinar OR "virtual event") ("register" OR "tickets" OR "join" OR "save your spot") -news -blog')
+
+    st.markdown(f"- [Tìm Sự kiện chính thức trên LinkedIn (Events)](https://www.google.com/search?q={dork_query1})")
+    st.markdown(f"- [Tìm bài đăng kêu gọi Livestream/Webinar trên LinkedIn](https://www.google.com/search?q={dork_query2})")
+    st.markdown(f"- [Tìm Livestream/Webinar trên toàn bộ Internet (Bất kỳ Website nào)](https://www.google.com/search?q={dork_query3})")
+    st.write("---")
 
     # =====================================
     # TABLE
@@ -390,6 +480,10 @@ if search_btn:
                 "Priority",
 
                 "Scheduled Start",
+                
+                "Actual Start",
+                
+                "Actual End",
 
                 "Link",
 
@@ -404,6 +498,21 @@ if search_btn:
             ],
             use_container_width=True,
         )
+
+        excel_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
+        if os.path.exists(excel_path):
+            try:
+                with open(excel_path, "rb") as f:
+                    excel_data = f.read()
+                st.download_button(
+                    label="📥 Tải xuống toàn bộ file Excel kết quả",
+                    data=excel_data,
+                    file_name="livestreams.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_excel_results"
+                )
+            except Exception as e:
+                pass
 
         # =====================================
         # DETAILS
@@ -424,6 +533,8 @@ if search_btn:
                 "Eventbrite": "🎟️",
 
                 "Twitch": "🎮",
+
+                "LinkedIn": "💼",
             }
 
             icon = platform_icon.get(

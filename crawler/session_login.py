@@ -19,6 +19,7 @@ from crawler._browser import launch_context
 LOGIN_URLS = {
     "x": "https://x.com/login",
     "tiktok": "https://www.tiktok.com/login",
+    "linkedin": "https://www.linkedin.com/login",
 }
 
 
@@ -56,8 +57,38 @@ def login(platform: str):
         print("Session saved.")
 
 
+def login_interactive_gui(platform: str):
+    platform = platform.lower()
+
+    if platform not in LOGIN_URLS:
+        return False, f"Unknown platform '{platform}'"
+
+    with sync_playwright() as p:
+        context = launch_context(p, platform, headless=False)
+        page = context.pages[0] if context.pages else context.new_page()
+
+        try:
+            page.goto(LOGIN_URLS[platform], timeout=60000)
+        except Exception:
+            pass
+
+        # Wait until the browser window/page is closed by the user
+        try:
+            while not page.is_closed():
+                page.wait_for_timeout(500)
+        except Exception:
+            pass
+
+        try:
+            context.close()
+        except Exception:
+            pass
+
+    return True, f"Phiên đăng nhập {platform.upper()} đã được lưu thành công!"
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python -m crawler.session_login <x|tiktok>")
+        raise SystemExit("Usage: python -m crawler.session_login <x|tiktok|linkedin>")
 
     login(sys.argv[1])

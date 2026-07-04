@@ -5,13 +5,22 @@ import json
 exhausted_models = set()
 
 
-def fallback_classify(title: str, description: str):
+def fallback_classify(title: str, description: str, goal: str = ""):
 
     text = f"{title} {description}".lower()
 
-    score = 20
-    industry = "General"
+    score = 40 if goal else 20
+    industry = goal.title() if goal else "General"
     buyer_persona = "Unknown"
+
+    if goal:
+        import re
+        goal_words = re.findall(r'[a-zA-Z0-9]+', goal.lower())
+        stop_words = {"livestream", "livestreams", "tìm", "kiếm", "ở", "về", "cho", "và", "and", "with", "the", "a", "an", "in", "on", "to", "for"}
+        meaningful = [w for w in goal_words if len(w) > 2 and w not in stop_words]
+        for w in meaningful:
+            if w in text:
+                score += 15
 
     business_keywords = [
         "startup",
@@ -141,8 +150,12 @@ def fallback_classify(title: str, description: str):
 
 def classify_event(
     title: str,
-    description: str
+    description: str,
+    goal: str = ""
 ):
+
+    if description and len(description) > 500:
+        description = description[:500] + "..."
 
     prompt = f"""
 Analyze this livestream.
@@ -177,7 +190,7 @@ Return ONLY valid JSON:
         try:
 
             print(
-                f"🤖 Gemini: {model}"
+                f"[AI Classify] Gemini: {model}"
             )
 
             gemini = Gemini(model)
@@ -235,7 +248,7 @@ Return ONLY valid JSON:
             ):
 
                 print(
-                    f"⚠️ Quota exhausted on {model}"
+                    f"[AI Classify] Warning: Quota exhausted on {model}"
                 )
 
                 exhausted_models.add(
@@ -245,10 +258,11 @@ Return ONLY valid JSON:
                 break
 
             print(
-                f"❌ Gemini Error: {error}"
+                f"[AI Classify] Gemini Error: {error}"
             )
 
     return fallback_classify(
         title,
-        description
+        description,
+        goal
     )

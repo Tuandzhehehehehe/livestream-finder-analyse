@@ -158,7 +158,7 @@ def is_valid_language(
     )
 
 
-def is_valid_upcoming(
+def is_valid_event(
     details
 ):
 
@@ -174,9 +174,9 @@ def is_valid_upcoming(
         "actualEndTime"
     )
 
-    # đã kết thúc
+    # Cho phép sự kiện đã kết thúc nếu nó có actual_end
     if actual_end:
-        return False
+        return True
 
     # đã live rồi
     if actual_start:
@@ -198,9 +198,9 @@ def is_valid_upcoming(
             timezone.utc
         )
 
-        # quá khứ
-        if scheduled_dt < now:
-            return False
+        # Đối với live chưa kết thúc, nếu quá khứ và không live thì bỏ qua
+        # Nhưng ở đây ta đã cho phép completed (có actual_end) ở trên.
+        # Nếu chưa kết thúc mà scheduled_dt quá xa trong quá khứ thì sao? Tạm thời giữ lại.
 
         # quá xa
         if scheduled_dt > (
@@ -262,6 +262,14 @@ def crawl_youtube_live(
                         )
                     )
 
+                    completed_response = (
+                        search_by_event_type(
+                            query,
+                            "completed",
+                            limit
+                        )
+                    )
+
                     sources = [
 
                         (
@@ -272,6 +280,11 @@ def crawl_youtube_live(
                         (
                             "UPCOMING",
                             upcoming_response
+                        ),
+
+                        (
+                            "COMPLETED",
+                            completed_response
                         ),
                     ]
 
@@ -344,7 +357,7 @@ Actual End: {details.get('actualEndTime')}
 """
                                 )
 
-                                if not is_valid_upcoming(
+                                if not is_valid_event(
                                     details
                                 ):
                                     continue

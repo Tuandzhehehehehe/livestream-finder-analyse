@@ -8,7 +8,6 @@ client = genai.Client(
 
 
 def build_fallback(goal: str):
-
     text = goal.lower()
 
     industries = []
@@ -73,26 +72,44 @@ def build_fallback(goal: str):
         ],
     }
 
-    found = False
+    # Extract potential English/industry words from the goal
+    import re
+    words = re.findall(r'[a-zA-Z0-9]+', text)
+    
+    # Vietnamese/English stop words or generic search words to ignore
+    stop_words = {
+        "livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng", "ở", "về", "cho", 
+        "và", "and", "with", "the", "a", "an", "or", "in", "on", "at", "to", "by", "of", "for", "is", "are"
+    }
+    
+    meaningful_words = [w for w in words if w not in stop_words and len(w) > 2]
+    
+    found_any = False
+    for word in meaningful_words:
+        matched_key = None
+        for key in mapping:
+            if key in word or word in key:
+                matched_key = key
+                break
+        
+        if matched_key:
+            industries.extend(mapping[matched_key])
+            topics.extend(mapping[matched_key])
+            found_any = True
+        else:
+            # Preserve terms that aren't mapped (e.g. "tokenization")
+            industries.append(word)
+            topics.append(word)
+            found_any = True
 
-    for keyword, values in mapping.items():
-
-        if keyword in text:
-
-            industries.extend(values)
-            topics.extend(values)
-
-            found = True
-
-    if not found:
-
+    if not found_any:
         industries.append(goal)
         topics.append(goal)
 
     return {
-        "industries": list(set(industries)),
+        "industries": list(dict.fromkeys(industries)),
         "personas": personas,
-        "topics": list(set(topics)),
+        "topics": list(dict.fromkeys(topics)),
     }
 
 
@@ -117,9 +134,9 @@ Format:
 
 Rules:
 
-- industries = business industries
+- industries = business industries and broad fields
 - personas = target decision makers
-- topics = searchable event topics
+- topics = searchable event topics. **CRITICAL: You MUST include synonyms, related technologies, and alternative terms!** For example, if the goal is "tokenization", include "RWA", "smart contracts", "blockchain", "digital assets", "web3", etc. This is needed because some events use these related words instead of the exact keyword.
 
 Example:
 
@@ -146,10 +163,9 @@ Output:
 }}
 """
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
+        from ai.gemini import Gemini
+        gemini = Gemini("gemini-2.5-flash")
+        response = gemini.generate(prompt)
 
         text = (
             response.text

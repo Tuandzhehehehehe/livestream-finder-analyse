@@ -1,7 +1,82 @@
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import IntegrityError
+import os
+from openpyxl import load_workbook, Workbook
 
 from database.db import engine, livestreams
+
+EXCEL_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx")
+EXCEL_PATH = os.path.normpath(EXCEL_PATH)
+
+
+def save_to_excel(event: dict) -> bool:
+    """
+    Lưu thông tin livestream vào file Excel.
+    Cột định dạng: Tên, Location, Content, Ngày, YouTube, Meetup, X, TikTok, Eventbrite, LinkedIn
+    """
+    try:
+        os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)
+
+        headers = ['Tên', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
+
+        if os.path.exists(EXCEL_PATH):
+            wb = load_workbook(EXCEL_PATH)
+            ws = wb.active
+            # Cập nhật header nếu file Excel hiện tại là phiên bản cũ
+            if ws.max_column < len(headers):
+                for col_idx, header in enumerate(headers, 1):
+                    ws.cell(row=1, column=col_idx, value=header)
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Livestreams"
+            ws.append(headers)
+
+        url = event.get("url", "").strip()
+        if not url:
+            return False
+
+        url_exists = False
+        for row in range(2, ws.max_row + 1):
+            for col in range(5, 11):
+                cell_val = ws.cell(row=row, column=col).value
+                if cell_val and str(cell_val).strip() == url:
+                    url_exists = True
+                    break
+            if url_exists:
+                break
+
+        if url_exists:
+            return False
+
+        title = event.get("title", "")
+        location = event.get("platform", "")
+        content = event.get("description", "")
+        date = event.get("scheduled_start_time") or event.get("start_time") or ""
+
+        row_data = [title, location, content, date, "", "", "", "", "", ""]
+
+        platform = str(event.get("platform", "")).lower().strip()
+        if "youtube" in platform:
+            row_data[4] = url
+        elif "meetup" in platform:
+            row_data[5] = url
+        elif "x" in platform or "twitter" in platform:
+            row_data[6] = url
+        elif "tiktok" in platform:
+            row_data[7] = url
+        elif "eventbrite" in platform:
+            row_data[8] = url
+        elif "linkedin" in platform:
+            row_data[9] = url
+
+        ws.append(row_data)
+        wb.save(EXCEL_PATH)
+        return True
+    except Exception as e:
+        print(f"❌ Lỗi khi lưu vào Excel: {e}")
+        return False
+
 
 
 def save_event(event: dict) -> bool:
@@ -88,6 +163,7 @@ def save_event(event: dict) -> bool:
 
             conn.execute(stmt)
 
+        save_to_excel(event)
         return True
 
     except IntegrityError:
@@ -95,7 +171,7 @@ def save_event(event: dict) -> bool:
         print(
             f"⚠️ Livestream đã tồn tại: {event.get('url')}"
         )
-
+        save_to_excel(event)
         return False
 
     except Exception as e:
@@ -103,7 +179,6 @@ def save_event(event: dict) -> bool:
         print(
             f"❌ Lỗi khi lưu livestream: {e}"
         )
-
         return False
 
 
