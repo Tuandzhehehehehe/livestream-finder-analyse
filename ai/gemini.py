@@ -36,6 +36,24 @@ class Gemini:
             api_key=API_KEY
         )
 
+    def _log_token_usage(self, response, model_name):
+        try:
+            import json, time, os
+            if hasattr(response, 'usage_metadata') and response.usage_metadata:
+                usage = {
+                    "timestamp": time.time(),
+                    "model": model_name,
+                    "prompt_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
+                    "candidate_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
+                    "total_tokens": getattr(response.usage_metadata, "total_token_count", 0)
+                }
+                log_file = os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log")
+                os.makedirs(os.path.dirname(log_file), exist_ok=True)
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(usage) + "\n")
+        except Exception as e:
+            pass
+
     def generate(
         self,
         prompt: str
@@ -50,10 +68,12 @@ class Gemini:
             max_retries = 2
             for attempt in range(max_retries):
                 try:
-                    return self.client.models.generate_content(
+                    response = self.client.models.generate_content(
                         model=current_model,
                         contents=prompt
                     )
+                    self._log_token_usage(response, current_model)
+                    return response
                 except Exception as e:
                     last_exception = e
                     error_msg = str(e)
@@ -83,7 +103,9 @@ class Gemini:
         time.sleep(wait_time)
         
         # Thử lại lần cuối với model nhẹ nhất
-        return self.client.models.generate_content(
+        response = self.client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt
         )
+        self._log_token_usage(response, "gemini-2.0-flash")
+        return response

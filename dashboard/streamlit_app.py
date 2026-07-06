@@ -74,6 +74,37 @@ with st.sidebar:
     else:
         st.info("Chưa có dữ liệu Excel. Hãy thực hiện tìm kiếm.")
 
+    st.write("---")
+    st.write("## 🪙 Lịch sử dùng Token AI")
+    token_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
+    if os.path.exists(token_log_path):
+        try:
+            import json, time
+            records = []
+            with open(token_log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        d = json.loads(line)
+                        d["time"] = time.strftime('%H:%M:%S', time.localtime(d.get("timestamp")))
+                        records.append(d)
+                    except:
+                        pass
+            if records:
+                token_df = pd.DataFrame(records)
+                if not token_df.empty:
+                    token_df = token_df[["time", "model", "prompt_tokens", "candidate_tokens", "total_tokens"]]
+                    token_df.columns = ["Thời gian", "Model", "Prompt", "Candidate", "Total"]
+                    # Đảo ngược để hiển thị mới nhất lên trên (tuỳ chọn, nhưng thường table dễ nhìn hơn)
+                    token_df = token_df.iloc[::-1].reset_index(drop=True)
+                    
+                    st.dataframe(token_df, use_container_width=True, height=250)
+                    total_tokens = token_df["Total"].sum()
+                    st.info(f"**Tổng Token đã dùng:** {total_tokens}")
+        except Exception as e:
+            st.error(f"Lỗi khi đọc token log: {e}")
+    else:
+        st.info("Chưa có lịch sử dùng token.")
+
 st.title(
     "🎯 AI Multi-Platform Livestream Finder"
 )

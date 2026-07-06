@@ -16,6 +16,7 @@ from crawler.web_search import crawl_web
 from services.goal_analyzer import analyze_goal, build_fallback
 from services.relevance_filter import calculate_relevance
 from services.topic_expander import expand_topic
+from database.livestream_repository import get_event_by_url
 
 try:
     from crawler.eventbrite import crawl_eventbrite
@@ -173,6 +174,11 @@ def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         event["url"] = normalized
         if normalized in seen:
             continue
+            
+        # Kiểm tra xem dữ liệu đã tồn tại trong database chưa
+        if get_event_by_url(normalized):
+            continue
+            
         seen.add(normalized)
         results.append(event)
     return results
