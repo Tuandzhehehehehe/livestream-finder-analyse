@@ -65,28 +65,29 @@ def calculate_relevance(event, analysis, goal=""):
     PLATFORM_QUERY_TRUST = {"linkedin", "meetup", "eventbrite"}
     platform = str(event.get("platform", "")).lower().strip()
     if any(p in platform for p in PLATFORM_QUERY_TRUST):
-        # Kiểm tra xem từ khóa truy vấn (event["keyword"]) có liên quan đến mục tiêu không.
-        # Nếu có → cấp điểm tin cậy nền tảng, vì nền tảng đã xác nhận sự liên quan.
         if event_keyword:
             keyword_is_relevant = False
             for kw in keywords:
-                if kw and (
+                # Chỉ match khi keyword đầy đủ có trong event_keyword hoặc ngược lại
+                # Không dùng partial word match để tránh false positive
+                if kw and len(kw) > 2 and (
                     kw in event_keyword
                     or event_keyword in kw
-                    or any(part in event_keyword for part in kw.split())
-                    or any(part in kw for part in event_keyword.split())
                 ):
                     keyword_is_relevant = True
                     break
-            # Fallback: kiểm tra event_keyword có trong goal không
-            if not keyword_is_relevant and goal:
-                import re as _re
-                goal_words = _re.findall(r'[a-zA-Z0-9]+', goal.lower())
-                if any(part in event_keyword or event_keyword in part
-                       for part in goal_words if len(part) > 2):
-                    keyword_is_relevant = True
+            # Chỉ cấp điểm tin cậy nếu title cũng chứa keyword (không chỉ dựa vào search query)
             if keyword_is_relevant:
-                score = max(score, 15)
+                # Kiểm tra title có chứa ít nhất 1 keyword không
+                title_text = str(event.get("title", "")).lower()
+                title_has_keyword = any(
+                    kw and len(kw) > 2 and kw in title_text
+                    for kw in keywords
+                )
+                if title_has_keyword:
+                    score = max(score, 15)  # Chỉ boost khi title cũng match
+                else:
+                    score = max(score, 5)   # Boost nhẹ nếu chỉ keyword match
     # ── END: Platform query boost ──────────────────────────────────────────────
 
     # Intersection bonus: if the goal contains multiple distinct keywords (e.g. charity, tokenization)

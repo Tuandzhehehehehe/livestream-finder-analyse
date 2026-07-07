@@ -159,7 +159,7 @@ def filter_and_score_events(
     filtered = [
         event
         for event in events
-        if event.get("_match_score", 0) > 0
+        if event.get("_match_score", 0) >= 10  # Ngưỡng tối thiểu để lọc link không liên quan
     ]
 
     filtered.sort(
