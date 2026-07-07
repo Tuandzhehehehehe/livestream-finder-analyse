@@ -153,6 +153,7 @@ def classify_event(
     description: str,
     goal: str = ""
 ):
+    from ai.llm_client import generate, extract_json
 
     if description and len(description) > 500:
         description = description[:500] + "..."
@@ -178,91 +179,18 @@ Return ONLY valid JSON:
 }}
 """
 
-    gemini_models = [
-        "gemini-2.5-flash"
-    ]
+    try:
+        response = generate(prompt)  # Gemini → Groq → OpenAI fallback
+        text = extract_json(response.text)
+        result = json.loads(text)
 
-    for model in gemini_models:
+        if "priority" not in result:
+            score_val = result.get("score", 0)
+            result["priority"] = "High" if score_val >= 80 else "Medium" if score_val >= 50 else "Low"
+        if "interaction_tip" not in result:
+            result["interaction_tip"] = "Join with a relevant question or comment."
 
-        if model in exhausted_models:
-            continue
-
-        try:
-
-            print(
-                f"[AI Classify] Gemini: {model}"
-            )
-
-            gemini = Gemini(model)
-
-            response = gemini.generate(
-                prompt
-            )
-
-            text = response.text.strip()
-
-            if text.startswith(
-                "```json"
-            ):
-                text = text.replace(
-                    "```json",
-                    "",
-                    1
-                )
-
-            if text.endswith(
-                "```"
-            ):
-                text = text[:-3]
-
-            text = text.strip()
-
-            result = json.loads(
-                text
-            )
-
-            if "priority" not in result:
-                score_val = result.get("score", 0)
-                if score_val >= 80:
-                    result["priority"] = "High"
-                elif score_val >= 50:
-                    result["priority"] = "Medium"
-                else:
-                    result["priority"] = "Low"
-
-            if "interaction_tip" not in result:
-                result["interaction_tip"] = (
-                    "Join with a relevant question or comment."
-                )
-
-            return result
-
-        except Exception as e:
-
-            error = str(e)
-
-            if (
-                "RESOURCE_EXHAUSTED"
-                in error
-                or "429" in error
-            ):
-
-                print(
-                    f"[AI Classify] Warning: Quota exhausted on {model}"
-                )
-
-                exhausted_models.add(
-                    model
-                )
-
-                break
-
-            print(
-                f"[AI Classify] Gemini Error: {error}"
-            )
-
-    return fallback_classify(
-        title,
-        description,
-        goal
-    )
+        return result
+    except Exception as e:
+        print(f"[AI Classify] Error: {e}")
+        return fallback_classify(title, description, goal)

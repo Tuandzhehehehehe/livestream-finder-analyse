@@ -57,10 +57,9 @@ def save_profile(profile: dict, goal: str) -> str:
 def compile_goal(goal: str) -> dict:
     """
     Gọi AI MỘT LẦN DUY NHẤT để tạo toàn bộ goal profile.
-    Profile bao gồm: industries, personas, topics, search_queries,
-    positive_keywords, negative_keywords.
+    Tự động fallback: Gemini → Groq → OpenAI.
     """
-    from ai.gemini import Gemini
+    from ai.llm_client import generate, extract_json
 
     prompt = f"""You are a market research assistant helping find relevant business livestreams and events.
 
@@ -96,17 +95,14 @@ Example for goal "bán mỹ phẩm" (selling cosmetics):
 }}
 """
 
-    gemini = Gemini("gemini-2.5-flash")
-    response = gemini.generate(prompt)
-
-    text = response.text.strip()
-    text = text.replace("```json", "").replace("```", "").strip()
-
+    response = generate(prompt)  # Tự động fallback Gemini → Groq → OpenAI
+    text = extract_json(response.text)
     result = json.loads(text)
 
     profile = {
         "goal": goal,
         "compiled_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "compiled_by": f"{response.provider}/{response.model}",  # Lưu provider đã dùng
         "industries": result.get("industries", []),
         "personas": result.get("personas", []),
         "topics": result.get("topics", []),

@@ -1,7 +1,6 @@
-from ai.gemini import Gemini
+from ai.llm_client import generate, extract_json
 import json
 
-exhausted_models = set()
 
 def generate_comments(title: str, description: str, goal: str = ""):
     prompt = f"""
@@ -32,39 +31,17 @@ Return ONLY valid JSON in the following format:
   ]
 }}
 """
-    
-    gemini_models = ["gemini-2.5-flash"]
-    
-    for model in gemini_models:
-        if model in exhausted_models:
-            continue
-            
-        try:
-            print(f"[AI Comments] Gemini: {model}")
-            gemini = Gemini(model)
-            response = gemini.generate(prompt)
-            
-            text = response.text.strip()
-            if text.startswith("```json"):
-                text = text.replace("```json", "", 1)
-            if text.endswith("```"):
-                text = text[:-3]
-            text = text.strip()
-            
-            result = json.loads(text)
-            return result.get("suggestions", [])
-            
-        except Exception as e:
-            error = str(e)
-            if "RESOURCE_EXHAUSTED" in error or "429" in error:
-                print(f"[AI Comments] Warning: Quota exhausted on {model}")
-                exhausted_models.add(model)
-                break
-            print(f"[AI Comments] Gemini Error: {error}")
-            
-    # Fallback
-    return [
-        "Thấy chủ đề này khá thú vị, không biết thực tế triển khai có hay gặp rào cản gì không mọi người?",
-        "Góc nhìn rất thực tế. Cho mình hỏi thêm về case study cụ thể ở mảng này được không?",
-        "Phần này mình cũng đang quan tâm. Mọi người thường dùng công cụ gì để giải quyết bài toán này?"
-    ]
+
+    try:
+        response = generate(prompt)  # Gemini → Groq → OpenAI fallback
+        text = extract_json(response.text)
+        result = json.loads(text)
+        return result.get("suggestions", [])
+    except Exception as e:
+        print(f"[AI Comments] Error: {e}")
+        # Fallback
+        return [
+            "Thấy chủ đề này khá thú vị, không biết thực tế triển khai có hay gặp rào cản gì không mọi người?",
+            "Góc nhìn rất thực tế. Cho mình hỏi thêm về case study cụ thể ở mảng này được không?",
+            "Phần này mình cũng đang quan tâm. Mọi người thường dùng công cụ gì để giải quyết bài toán này?"
+        ]

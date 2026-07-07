@@ -183,7 +183,30 @@ with st.sidebar:
             pass
 
     st.write("---")
+    st.write("## 🧠 AI Providers")
+    try:
+        from ai.llm_client import available_providers
+        providers = available_providers()
+        provider_labels = {
+            "gemini": "🟢 Gemini (Google)",
+            "groq": "🟢 Groq (Free — Llama/Mixtral)",
+            "openai": "🟢 OpenAI (GPT)",
+        }
+        all_providers = ["gemini", "groq", "openai"]
+        for p in all_providers:
+            if p in providers:
+                st.markdown(provider_labels.get(p, f"🟢 {p}"))
+            else:
+                st.markdown(f"🔴 {p.capitalize()} — *chưa có API key*")
+        if len(providers) < 2:
+            st.caption("💡 Thêm key vào `.env` để dùng nhiều provider, tránh hết quota:")
+            st.code("GROQ_API_KEY=gsk_...\nOPENAI_API_KEY=sk-...", language="text")
+    except Exception:
+        st.info("Không thể kiểm tra AI providers.")
+
+    st.write("---")
     st.write("## 🪙 Lịch sử dùng Token AI")
+
 
     token_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
     if os.path.exists(token_log_path):
