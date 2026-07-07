@@ -16,136 +16,11 @@ from crawler.web_search import crawl_web
 from services.goal_analyzer import build_fallback
 from services.relevance_filter import calculate_relevance
 from services.goal_profile_compiler import get_or_compile
-from database.livestream_repository import get_event_by_url
 
 try:
     from crawler.eventbrite import crawl_eventbrite
 except Exception:
     crawl_eventbrite = None
-
-
-def build_fallback_queries(goal: str, max_queries: int = 20) -> List[str]:
-    text = goal.strip().lower()
-    if not text:
-        return []
-
-    tokens = re.split(r"[\s,\/\\-]+", text)
-    tokens = [t for t in tokens if t]
-
-    suffixes = [
-        "",
-        " live",
-        " livestream",
-        " live stream",
-        " stream",
-        " webinar",
-        " workshop",
-        " online event",
-        " live session",
-        " talk",
-        " panel",
-        " ama",
-        " networking",
-    ]
-
-    queries = []
-    for token in tokens or [text]:
-        for suffix in suffixes:
-            query = f"{token}{suffix}".strip()
-            if query not in queries:
-                queries.append(query)
-                if len(queries) >= max_queries:
-                    return queries
-
-    if text not in queries:
-        queries.insert(0, text)
-
-    return queries[:max_queries]
-
-
-def build_search_queries(goal: str, max_queries: int = 20, use_ai: bool = True) -> List[str]:
-    # Extract core terms to generate combined intersection queries first
-    import re
-    goal_words = re.findall(r'[a-zA-Z0-9]+', goal.lower())
-    stop_words = {
-        "livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng", "ở", "về", "cho", 
-        "và", "and", "with", "the", "a", "an", "or", "in", "on", "at", "to", "by", "of", "for", "is", "are"
-    }
-    core_terms = [w for w in goal_words if w not in stop_words and len(w) > 2]
-    
-    queries = []
-    
-    if len(core_terms) >= 2:
-        combo = " ".join(core_terms)
-        for suffix in ["", " live", " livestream", " webinar", " online event"]:
-            q = f"{combo}{suffix}".strip()
-            if q not in queries:
-                queries.append(q)
-
-    if use_ai:
-        analysis = analyze_goal(goal)
-    else:
-        analysis = build_fallback(goal)
-
-    industries = analysis.get("industries", []) or [goal]
-    topics = analysis.get("topics", []) or [goal]
-
-    base_keywords = [goal] + industries + topics
-
-    suffixes = [
-        "",
-        " live",
-        " livestream",
-        " live stream",
-        " stream",
-        " webinar",
-        " workshop",
-        " online event",
-        " live session",
-        " talk",
-        " panel",
-        " ama",
-        " networking",
-    ]
-
-    for idx, keyword in enumerate(base_keywords):
-        keyword = str(keyword).strip()
-        if not keyword:
-            continue
-
-        if keyword not in queries:
-            queries.append(keyword)
-
-        if use_ai and idx < 3:  # Cấu trúc tối ưu: chỉ gọi AI mở rộng cho 3 từ khóa đầu để tránh dính rate limit API
-            expanded = expand_topic(keyword)
-            if isinstance(expanded, list) and expanded:
-                for q in expanded:
-                    q = str(q).strip()
-                    if q and q not in queries:
-                        queries.append(q)
-
-        if len(queries) >= max_queries:
-            break
-
-    if len(queries) < max_queries:
-        for keyword in base_keywords:
-            for suffix in suffixes:
-                query = f"{keyword}{suffix}".strip()
-                if query and query not in queries:
-                    queries.append(query)
-                if len(queries) >= max_queries:
-                    break
-            if len(queries) >= max_queries:
-                break
-
-    if len(queries) < max_queries:
-        for fallback in build_fallback_queries(goal, max_queries):
-            if fallback not in queries:
-                queries.append(fallback)
-                if len(queries) >= max_queries:
-                    break
-
-    return queries[:max_queries]
 
 
 def normalize_event_url(url: str) -> str:
@@ -164,6 +39,11 @@ def normalize_event_url(url: str) -> str:
 
 
 def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Loại bỏ trùng lặp URL trong phạm vi một phiên crawl.
+    Không check DB ở đây — một URL có thể liên quan đến nhiều chủ đề khác nhau.
+    Việc chống trùng vào DB chỉ xảy ra tại lúc save (IntegrityError).
+    """
     seen = set()
     results = []
     for event in events:
@@ -174,11 +54,6 @@ def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         event["url"] = normalized
         if normalized in seen:
             continue
-            
-        # Kiểm tra xem dữ liệu đã tồn tại trong database chưa
-        if get_event_by_url(normalized):
-            continue
-            
         seen.add(normalized)
         results.append(event)
     return results
