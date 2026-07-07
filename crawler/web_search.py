@@ -62,13 +62,34 @@ def crawl_web(keywords, limit=20, **kwargs):
                                     pass
 
                                 if title:
+                                    import re as _re
+                                    from datetime import datetime as _dt
+                                    current_year = _dt.now().year
+
+                                    # Tìm năm trong title hoặc snippet
+                                    years_found = [int(y) for y in _re.findall(r'\b(20\d{2})\b', title + ' ' + snippet)]
+
+                                    event_status = "UPCOMING"
+                                    skip = False
+                                    if years_found:
+                                        min_year = min(years_found)
+                                        if min_year < current_year:
+                                            # Năm cũ hơn năm hiện tại → đã qua, bỏ qua
+                                            skip = True
+                                        elif min_year > current_year + 1:
+                                            # Năm quá xa trong tương lai → bỏ qua
+                                            skip = True
+
+                                    if skip:
+                                        continue
+
                                     events.append({
                                         "platform": "Web",
                                         "keyword": keyword,
                                         "title": title,
                                         "url": href,
-                                        "start_time": "N/A",
-                                        "status": "UPCOMING",
+                                        "start_time": "",
+                                        "status": event_status,
                                         "description": snippet
                                     })
                                     if len(events) >= limit:
