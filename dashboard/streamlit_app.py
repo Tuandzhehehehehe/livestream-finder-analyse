@@ -93,7 +93,55 @@ with st.sidebar:
         st.info("Chưa có profile nào.")
 
     st.write("---")
+    st.write("## ⚙️ Auto-Run")
+    st.caption("Tự động crawl + classify + lưu DB theo lịch")
+
+    auto_run_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "auto_run.log"))
+
+    # Nút chạy thủ công 1 lần
+    if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
+        with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
+            try:
+                from services.auto_runner import run_once
+                summary = run_once(auto_classify=True, auto_comment=False)
+                st.success(
+                    f"✅ Hoàn tất! "
+                    f"**{summary['total_new']}** event mới | "
+                    f"**{summary['total_skipped']}** bỏ qua | "
+                    f"**{summary['profiles_run']}** profiles"
+                )
+                if summary["errors"]:
+                    st.warning(f"⚠️ {len(summary['errors'])} lỗi: " + "; ".join(summary["errors"][:2]))
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi: {e}")
+
+    st.caption("💡 Để chạy theo lịch tự động, mở terminal mới và chạy:")
+    st.code("py auto_crawl.py --interval 2", language="bash")
+
+    # Hiển thị log gần nhất
+    if os.path.exists(auto_run_log_path):
+        try:
+            from services.auto_runner import read_log_entries
+            log_entries = read_log_entries(20)
+            if log_entries:
+                with st.expander("📋 Log Auto-Run gần nhất", expanded=False):
+                    log_rows = []
+                    for entry in log_entries:
+                        ts = entry.get("timestamp", "")[:16].replace("T", " ")
+                        goal = entry.get("goal", "")[:30]
+                        status = "✅" if entry.get("status") == "ok" else "❌"
+                        new_ev = entry.get("new_events", "-")
+                        skipped = entry.get("skipped", "-")
+                        log_rows.append({"Thời gian": ts, "Goal": goal, "Status": status, "Mới": new_ev, "Bỏ qua": skipped})
+                    if log_rows:
+                        st.dataframe(pd.DataFrame(log_rows), use_container_width=True, height=200)
+        except Exception:
+            pass
+
+    st.write("---")
     st.write("## 🪙 Lịch sử dùng Token AI")
+
     token_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
     if os.path.exists(token_log_path):
         try:
