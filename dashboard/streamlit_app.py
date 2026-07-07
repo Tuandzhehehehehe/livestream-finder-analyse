@@ -284,11 +284,7 @@ if search_btn:
 
             mode = "ai_then_fallback" if ai_mode == "AI then Fallback" else "fallback_only"
 
-            # reorder selected platforms if prefer_fast
-            if prefer_fast and selected_platforms:
-                preferred = [p for p in ["meetup", "youtube"] if p in selected_platforms]
-                rest = [p for p in selected_platforms if p not in preferred]
-                selected_platforms = preferred + rest
+
 
             # call defensively in case runtime function signature differs
             sig = inspect.signature(crawl_livestreams_with_ai)

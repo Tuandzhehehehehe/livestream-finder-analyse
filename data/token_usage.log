@@ -22,3 +22,6 @@
 {"timestamp": 1783335546.0470731, "model": "gemini-2.5-flash", "prompt_tokens": 65, "candidate_tokens": 44, "total_tokens": 582}
 {"timestamp": 1783336145.917518, "model": "gemini-2.5-flash", "prompt_tokens": 64, "candidate_tokens": 47, "total_tokens": 539}
 {"timestamp": 1783336865.6521442, "model": "gemini-2.5-flash", "prompt_tokens": 65, "candidate_tokens": 46, "total_tokens": 523}
+{"timestamp": 1783388960.1752949, "model": "gemini-2.5-flash", "prompt_tokens": 619, "candidate_tokens": 679, "total_tokens": 2523}
+{"timestamp": 1783388964.4215214, "model": "gemini-2.5-flash", "prompt_tokens": 66, "candidate_tokens": 60, "total_tokens": 669}
+{"timestamp": 1783388971.1082149, "model": "gemini-2.5-flash", "prompt_tokens": 68, "candidate_tokens": 57, "total_tokens": 741}

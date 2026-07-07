@@ -93,11 +93,26 @@ def crawl_meetup(
                         "time"
                     )
 
-                    event_time = (
-                        time_tag.text.strip()
-                        if time_tag
-                        else ""
-                    )
+                    event_time = ""
+                    event_datetime_str = ""
+                    if time_tag:
+                        event_time = time_tag.text.strip()
+                        # Lấy attribute datetime để parse chính xác
+                        event_datetime_str = time_tag.get("datetime", "")
+
+                    # Lọc sự kiện đã qua
+                    if event_datetime_str:
+                        try:
+                            from datetime import datetime, timezone, timedelta
+                            event_dt = datetime.fromisoformat(
+                                event_datetime_str.replace("Z", "+00:00")
+                            )
+                            now = datetime.now(timezone.utc)
+                            # Bỏ qua sự kiện đã kết thúc hơn 1 ngày trước
+                            if event_dt < (now - timedelta(days=1)):
+                                continue
+                        except Exception:
+                            pass
 
                     organizer_tag = event.find(
                         "div",

@@ -183,6 +183,61 @@ def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         results.append(event)
     return results
 
+def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
+    """
+    Loại bỏ các sự kiện đã quá cũ hoặc sai trạng thái:
+    - COMPLETED: giữ lại nếu kết thúc trong vòng max_past_days ngày qua
+    - UPCOMING: loại nếu scheduled_start_time đã qua hơn 1 ngày
+    - LIVE: giữ lại nếu không có thông tin thời gian hoặc còn trong ngưỡng hợp lệ
+    """
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    cutoff_past = now - timedelta(days=max_past_days)
+    cutoff_upcoming = now - timedelta(days=1)
+    results = []
+
+    for event in events:
+        status = str(event.get("status", "")).upper()
+
+        # --- Parse các mốc thời gian ---
+        def _parse(dt_str):
+            if not dt_str:
+                return None
+            try:
+                return datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
+            except Exception:
+                return None
+
+        actual_end = _parse(event.get("actual_end_time"))
+        actual_start = _parse(event.get("actual_start_time"))
+        scheduled = _parse(event.get("scheduled_start_time")) or _parse(event.get("start_time"))
+
+        if status == "COMPLETED":
+            # Loại sự kiện đã kết thúc quá lâu
+            if actual_end and actual_end < cutoff_past:
+                continue
+            # Nếu có actual_start nhưng không có actual_end, kiểm tra actual_start
+            if not actual_end and actual_start and actual_start < cutoff_past:
+                continue
+
+        elif status == "UPCOMING":
+            # Loại nếu scheduled_start_time đã qua hơn 1 ngày (sự kiện không bắt đầu đúng giờ)
+            if scheduled and scheduled < cutoff_upcoming:
+                continue
+
+        elif status == "LIVE":
+            # Nếu có actual_end thì thực ra đã kết thúc -> bỏ qua nếu quá cũ
+            if actual_end and actual_end < cutoff_past:
+                continue
+
+        results.append(event)
+
+    removed = len(events) - len(results)
+    if removed > 0:
+        print(f"[Time Filter] Loại bỏ {removed} sự kiện cũ/sai trạng thái")
+    return results
+
 
 def classify_priority(score: int) -> str:
     if score >= 40:
@@ -406,6 +461,9 @@ def crawl_livestreams_with_ai(
 
     events = deduplicate_events(events)
 
+    # Lọc sự kiện cũ/sai trạng thái trước khi score
+    events = time_filter_events(events)
+
     # First pass filtering/scoring
     events = filter_and_score_events(events, analysis, goal=goal)
 
@@ -437,6 +495,9 @@ def crawl_livestreams_with_ai(
         events = deduplicate_events(fallback_events)
         analysis = fallback_analysis
         queries = fallback_queries
+
+        # Lọc sự kiện cũ/sai trạng thái
+        events = time_filter_events(events)
 
         events = filter_and_score_events(events, analysis, goal=goal)
 

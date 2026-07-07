@@ -161,58 +161,46 @@ def is_valid_language(
 def is_valid_event(
     details
 ):
+    from datetime import datetime, timezone, timedelta
 
-    scheduled = details.get(
-        "scheduledStartTime"
-    )
+    scheduled = details.get("scheduledStartTime")
+    actual_start = details.get("actualStartTime")
+    actual_end = details.get("actualEndTime")
 
-    actual_start = details.get(
-        "actualStartTime"
-    )
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=7)  # Không lấy sự kiện đã qua hơn 7 ngày
 
-    actual_end = details.get(
-        "actualEndTime"
-    )
+    def _parse(s):
+        try:
+            return datetime.fromisoformat(str(s).replace("Z", "+00:00")) if s else None
+        except Exception:
+            return None
 
-    # Cho phép sự kiện đã kết thúc nếu nó có actual_end
-    if actual_end:
-        return True
+    actual_end_dt = _parse(actual_end)
+    actual_start_dt = _parse(actual_start)
+    scheduled_dt = _parse(scheduled)
 
-    # đã live rồi
-    if actual_start:
+    # Sự kiện đã kết thúc: chỉ lấy nếu kết thúc trong 7 ngày qua
+    if actual_end_dt:
+        return actual_end_dt >= cutoff
+
+    # Đang live nhưng có actual_start: chỉ giữ nếu bắt đầu trong 7 ngày qua
+    if actual_start_dt:
+        return actual_start_dt >= cutoff
+
+    # Chưa bắt đầu (UPCOMING): cần có scheduled_start_time
+    if not scheduled_dt:
         return False
 
-    if not scheduled:
+    # Không lấy upcoming quá xa trong tương lai (> 30 ngày)
+    if scheduled_dt > (now + timedelta(days=30)):
         return False
 
-    try:
-
-        scheduled_dt = datetime.fromisoformat(
-            scheduled.replace(
-                "Z",
-                "+00:00"
-            )
-        )
-
-        now = datetime.now(
-            timezone.utc
-        )
-
-        # Đối với live chưa kết thúc, nếu quá khứ và không live thì bỏ qua
-        # Nhưng ở đây ta đã cho phép completed (có actual_end) ở trên.
-        # Nếu chưa kết thúc mà scheduled_dt quá xa trong quá khứ thì sao? Tạm thời giữ lại.
-
-        # quá xa
-        if scheduled_dt > (
-            now + timedelta(days=30)
-        ):
-            return False
-
-        return True
-
-    except Exception:
-
+    # Loại upcoming đã qua hơn 1 ngày mà chưa bắt đầu
+    if scheduled_dt < (now - timedelta(days=1)):
         return False
+
+    return True
 
 
 def crawl_youtube_live(
@@ -228,18 +216,12 @@ def crawl_youtube_live(
 
         try:
 
-            expanded_queries = (
-                expand_topic(
-                    keyword
-                )
-            )
+            # Dùng keyword trực tiếp đã được expand sẵn từ Goal Profile,
+            # không cần expand_topic ở đây nữa (tiết kiệm token AI)
+            expanded_queries = [keyword]
 
             print(
                 f"\nKeyword: {keyword}"
-            )
-
-            print(
-                f"Expanded Queries: {expanded_queries}"
             )
 
             for query in expanded_queries:
