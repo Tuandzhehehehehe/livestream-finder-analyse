@@ -1,4 +1,4 @@
-from ai.gemini import Gemini
+from ai.llm_client import generate, extract_json
 import json
 
 
@@ -25,25 +25,8 @@ Example:
 
     try:
 
-        gemini = Gemini()
-
-        response = gemini.generate(
-            prompt
-        )
-
-        text = response.text.strip()
-
-        text = text.replace(
-            "```json",
-            ""
-        )
-
-        text = text.replace(
-            "```",
-            ""
-        )
-
-        text = text.strip()
+        response = generate(prompt)
+        text = extract_json(response.text)
 
         queries = json.loads(
             text

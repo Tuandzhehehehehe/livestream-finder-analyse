@@ -1,8 +1,6 @@
 
-from ai.gemini import Gemini
 import json
 
-exhausted_models = set()
 
 
 def fallback_classify(title: str, description: str, goal: str = ""):

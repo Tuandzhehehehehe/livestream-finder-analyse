@@ -163,16 +163,9 @@ Output:
 }}
 """
 
-        from ai.gemini import Gemini
-        gemini = Gemini("gemini-2.5-flash")
-        response = gemini.generate(prompt)
-
-        text = (
-            response.text
-            .replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
+        from ai.llm_client import generate, extract_json
+        response = generate(prompt)
+        text = extract_json(response.text)
 
         result = json.loads(text)
 
