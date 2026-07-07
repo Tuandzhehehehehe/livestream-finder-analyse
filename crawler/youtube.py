@@ -190,7 +190,8 @@ def is_valid_event(
 
     # Chưa bắt đầu (UPCOMING): cần có scheduled_start_time
     if not scheduled_dt:
-        return False
+        # Không có thông tin ngày giờ — không chắc là cũ, cho qua
+        return True
 
     # Không lấy upcoming quá xa trong tương lai (> 30 ngày)
     if scheduled_dt > (now + timedelta(days=30)):
