@@ -98,12 +98,45 @@ with st.sidebar:
 
     auto_run_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "auto_run.log"))
 
-    # Nút chạy thủ công 1 lần
+    # ── Cấu hình interval ────────────────────────────────────────────
+    ar_interval = st.number_input(
+        "⏱ Khoảng cách giữa các lần crawl (giờ)",
+        min_value=0.5,
+        max_value=72.0,
+        value=24.0,
+        step=0.5,
+        help="Khuyên dùng ≥ 24h để API key (Gemini + YouTube) kịp reset quota hàng ngày",
+        key="ar_interval",
+    )
+
+    ar_platforms_all = ["youtube", "meetup", "linkedin", "web"]
+    if crawl_eventbrite:
+        ar_platforms_all.append("eventbrite")
+
+    ar_platforms = st.multiselect(
+        "🌐 Platforms",
+        ar_platforms_all,
+        default=["meetup", "linkedin"],
+        key="ar_platforms",
+    )
+
+    ar_col1, ar_col2 = st.columns(2)
+    with ar_col1:
+        ar_classify = st.checkbox("🤖 Auto-Classify", value=True, key="ar_classify")
+    with ar_col2:
+        ar_comment = st.checkbox("💬 Auto-Comment", value=False, key="ar_comment",
+                                  help="Tắt để tiết kiệm token AI")
+
+    # ── Nút chạy thủ công 1 lần ──────────────────────────────────────
     if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
         with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
             try:
                 from services.auto_runner import run_once
-                summary = run_once(auto_classify=True, auto_comment=False)
+                summary = run_once(
+                    platforms=ar_platforms if ar_platforms else None,
+                    auto_classify=ar_classify,
+                    auto_comment=ar_comment,
+                )
                 st.success(
                     f"✅ Hoàn tất! "
                     f"**{summary['total_new']}** event mới | "
@@ -116,10 +149,20 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Lỗi: {e}")
 
-    st.caption("💡 Để chạy theo lịch tự động, mở terminal mới và chạy:")
-    st.code("py auto_crawl.py --interval 2", language="bash")
+    # ── Lệnh terminal động theo cấu hình ─────────────────────────────
+    cmd_parts = [f"py auto_crawl.py --interval {ar_interval}"]
+    if ar_platforms:
+        cmd_parts.append(f"--platforms {' '.join(ar_platforms)}")
+    if not ar_classify:
+        cmd_parts.append("--no-classify")
+    if not ar_comment:
+        cmd_parts.append("--no-comment")
 
-    # Hiển thị log gần nhất
+    st.caption("💡 Để chạy theo lịch tự động, mở terminal mới và chạy:")
+    st.code(" ".join(cmd_parts), language="bash")
+    st.caption(f"⚠️ Khuyến nghị: interval ≥ 24h để tránh cạn quota API (hiện tại: **{ar_interval}h**)")
+
+    # ── Log gần nhất ─────────────────────────────────────────────────
     if os.path.exists(auto_run_log_path):
         try:
             from services.auto_runner import read_log_entries
