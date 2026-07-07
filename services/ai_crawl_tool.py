@@ -13,9 +13,9 @@ from crawler.x import crawl_x_live
 from crawler.tiktok import crawl_tiktok_live
 from crawler.linkedin import crawl_linkedin
 from crawler.web_search import crawl_web
-from services.goal_analyzer import analyze_goal, build_fallback
+from services.goal_analyzer import build_fallback
 from services.relevance_filter import calculate_relevance
-from services.topic_expander import expand_topic
+from services.goal_profile_compiler import get_or_compile
 from database.livestream_repository import get_event_by_url
 
 try:
@@ -242,19 +242,34 @@ def crawl_livestreams_with_ai(
 ) -> Dict[str, Any]:
     # accept extra kwargs for compatibility with older callers
     use_ai = mode != "fallback_only"
-    analysis = analyze_goal(goal) if use_ai else build_fallback(goal)
+    force_recompile = bool(kwargs.get("force_recompile", False))
 
-    if not analysis.get("industries") and not analysis.get("topics"):
+    # --- Goal Profile: gọi AI 1 lần, dùng lại cho mọi lần crawl cùng goal ---
+    if use_ai:
+        profile = get_or_compile(goal, force_recompile=force_recompile)
+    else:
+        profile = None
+
+    # Build analysis dict từ profile (tương thích với filter_and_score_events)
+    if profile:
         analysis = {
-            "industries": [goal],
-            "personas": [],
-            "topics": [goal],
+            "industries": profile.get("industries", []),
+            "personas": profile.get("personas", []),
+            "topics": profile.get("topics", []),
+            "positive_keywords": profile.get("positive_keywords", []),
+            "negative_keywords": profile.get("negative_keywords", []),
         }
+        # Dùng search_queries đã compile sẵn từ profile
+        queries = profile.get("search_queries", [])
+        if not queries:
+            queries = [goal]
+    else:
+        analysis = build_fallback(goal)
+        if not analysis.get("industries") and not analysis.get("topics"):
+            analysis = {"industries": [goal], "personas": [], "topics": [goal]}
+        queries = [goal]
 
-    queries = build_search_queries(goal, max_queries=20, use_ai=use_ai)
-
-    # Từ khóa gốc (không hậu tố) cho nền tảng sự kiện chuyên nghiệp.
-    # Ưu tiên goal và topics trước vì industries thường quá chung chung.
+    # Từ khóa gốc (không hậu tố) cho nền tảng sự kiện chuyên nghiệp
     _raw_terms = list(dict.fromkeys(
         [goal] +
         analysis.get("topics", []) +
@@ -400,7 +415,8 @@ def crawl_livestreams_with_ai(
     if mode == "ai_then_fallback" and not events:
         used_fallback = True
         fallback_analysis = build_fallback(goal)
-        fallback_queries = build_search_queries(goal, max_queries=20, use_ai=False)
+        # Dùng queries từ profile nếu có, hoặc fallback queries
+        fallback_queries = queries if queries else [goal]
         fallback_events = []
 
         for platform in keys:

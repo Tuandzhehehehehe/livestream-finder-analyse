@@ -108,8 +108,8 @@ def calculate_relevance(event, analysis, goal=""):
     if goal and goal.lower() in text:
         score += 5
 
-    positive_words = [
-
+    # Dùng positive/negative keywords từ profile nếu có, fallback sang danh sách mặc định
+    positive_words = analysis.get("positive_keywords") or [
         "webinar",
         "conference",
         "summit",
@@ -126,12 +126,10 @@ def calculate_relevance(event, analysis, goal=""):
     ]
 
     for word in positive_words:
-
-        if word in text:
+        if str(word).lower() in text:
             score += 5
 
-    negative_words = [
-
+    negative_words = analysis.get("negative_keywords") or [
         "gaming",
         "minecraft",
         "music",
@@ -146,8 +144,7 @@ def calculate_relevance(event, analysis, goal=""):
     ]
 
     for word in negative_words:
-
-        if word in text:
+        if str(word).lower() in text:
             score -= 15
 
     return score

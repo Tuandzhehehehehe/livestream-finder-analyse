@@ -9,6 +9,7 @@ from services.ai_crawl_tool import crawl_livestreams_with_ai
 from ai.classify import classify_event
 from database.livestream_repository import save_event
 from crawler.session_login import login_interactive_gui
+from services.goal_profile_compiler import get_or_compile, load_profile, list_profiles, delete_profile
 
 try:
     from crawler.eventbrite import crawl_eventbrite
@@ -73,6 +74,23 @@ with st.sidebar:
             st.error(f"Lỗi khi đọc file Excel: {e}")
     else:
         st.info("Chưa có dữ liệu Excel. Hãy thực hiện tìm kiếm.")
+
+    st.write("---")
+    st.write("## 🧠 Goal Profiles")
+    st.caption("Mỗi profile được compile 1 lần và tái sử dụng, tiết kiệm token AI")
+    all_profiles = list_profiles()
+    if all_profiles:
+        import json as _json
+        for p in all_profiles:
+            col_p, col_del = st.columns([3, 1])
+            with col_p:
+                st.markdown(f"**{p['goal']}**  \n⏰ {p['compiled_at']} — {p['query_count']} queries")
+            with col_del:
+                if st.button("🗑️", key=f"del_{p['file']}", help="Xóa profile này"):
+                    delete_profile(p['goal'])
+                    st.rerun()
+    else:
+        st.info("Chưa có profile nào.")
 
     st.write("---")
     st.write("## 🪙 Lịch sử dùng Token AI")
@@ -209,9 +227,10 @@ Ecommerce Seller
             value=False,
         )
 
-        prefer_fast = st.checkbox(
-            "Prefer fast platforms (meetup,youtube first)",
-            value=True,
+        force_recompile = st.checkbox(
+            "🔄 Compile lại profile (bỏ qua cache)",
+            value=False,
+            help="Bất nếu bạn muốn AI phân tích lại goal từ đầu"
         )
 
         limit = st.number_input(
@@ -278,6 +297,7 @@ if search_btn:
                 "cache": bool(enable_cache),
                 "cache_ttl": int(cache_ttl),
                 "use_headless": bool(use_headless),
+                "force_recompile": bool(force_recompile),
             }
 
             if "mode" in sig.parameters:
@@ -323,6 +343,22 @@ if search_btn:
     st.write(
         queries
     )
+
+    # ---- Hiển thị thông tin Goal Profile đang dùng ----
+    used_profile = load_profile(goal)
+    if used_profile:
+        with st.expander("🧠 Thông tin Goal Profile đang dùng", expanded=False):
+            st.caption(f"⏰ Compiled lúc: **{used_profile.get('compiled_at', 'N/A')}**")
+            col_i, col_t = st.columns(2)
+            with col_i:
+                st.markdown("**Industries:**")
+                st.write(used_profile.get("industries", []))
+            with col_t:
+                st.markdown("**Topics:**")
+                st.write(used_profile.get("topics", []))
+            st.markdown(f"**Số search queries:** {len(used_profile.get('search_queries', []))}")
+            st.info("💡 Profile này được tái sử dụng, **không tốn thêm token AI**. Bật '🔄 Compile lại profile' nếu muốn cập nhật.")
+
 
     if use_ai_crawl:
         st.write(
