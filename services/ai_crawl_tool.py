@@ -101,16 +101,17 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
             if scheduled and scheduled < cutoff_upcoming:
                 continue
 
-            # Fallback: nếu không có timestamp, tìm năm trong title/description
-            # Ví dụ: "Small Charity Week 2024: Webinar" → năm 2024 < 2026 → bỏ
-            if not scheduled:
-                import re as _re
-                text_to_scan = str(event.get("title", "")) + " " + str(event.get("description", ""))
-                years_in_text = [int(y) for y in _re.findall(r'\b(20\d{2})\b', text_to_scan)]
-                if years_in_text:
-                    min_year = min(years_in_text)
-                    if min_year < now.year:
-                        continue  # Năm trong tiêu đề đã qua → bỏ qua
+        # --- Fallback cho MỌI status: nếu không có timestamp, quét NĂM trong TITLE ---
+        # Chỉ quét title (không quét description vì description hay chứa năm không liên quan)
+        if not actual_end and not actual_start and not scheduled:
+            import re as _re
+            title = str(event.get("title", ""))
+            years_in_title = [int(y) for y in _re.findall(r'\b(20\d{2})\b', title)]
+            if years_in_title:
+                max_year = max(years_in_title)
+                if max_year < now.year:
+                    # Năm mới nhất trong title đã qua → sự kiện cũ, bỏ qua
+                    continue
 
         elif status == "LIVE":
             # Nếu có actual_end thì thực ra đã kết thúc -> bỏ qua nếu quá cũ
