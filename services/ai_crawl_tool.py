@@ -59,24 +59,23 @@ def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return results
 
 def infer_event_status(event: Dict[str, Any]) -> str:
-    """Tự động nhận diện trạng thái LIVE nếu tiêu đề hoặc mô tả chứa các từ khóa phát trực tiếp."""
+    """Nhận diện trạng thái phát trực tiếp (LIVE) thực tế."""
     status = str(event.get("status", "")).upper()
-    if status == "LIVE":
-        return "LIVE"
     
     title = str(event.get("title", "")).lower()
     desc = str(event.get("description", "")).lower()
     text = f"{title} {desc}"
     
-    live_keywords = [
-        "live", "livestream", "live stream", "trực tiếp", "phát trực tiếp", 
-        "happening now", "watching now", "online now", "[live]", "🔴 live", "live now"
+    # Chỉ gán LIVE nếu có các cụm từ khẳng định đang phát sóng trực tiếp ngay lúc này
+    strict_live_phrases = [
+        "🔴 live", "live now", "happening now", "watching now", "online now", 
+        "đang phát trực tiếp", "streaming live now", "[live now]", "live stream now"
     ]
     
-    if any(kw in text for kw in live_keywords):
+    if any(phrase in text for phrase in strict_live_phrases):
         return "LIVE"
         
-    return status or "UPCOMING"
+    return status if status else "UPCOMING"
 
 
 def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
@@ -183,7 +182,7 @@ def filter_and_score_events(
     filtered = [
         event
         for event in events
-        if event.get("_match_score", 0) >= 50  # Ngưỡng tối thiểu để lọc link không liên quan (đã nâng lên >= 50)
+        if event.get("_match_score", 0) >= 30  # Lọc thông minh: loại bỏ 100% spam Roblox/Givaway rác (< 30 điểm)
     ]
 
     filtered.sort(

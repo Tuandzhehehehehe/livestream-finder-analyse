@@ -544,33 +544,28 @@ if search_btn:
                 )
 
                 if enable_ai:
-                    match_score = event.get("_match_score", 0)
-                    if match_score >= 50:
-                        try:
-                            ai_result = (
-                                classify_event(
-                                    event.get("title", ""),
-                                    event.get("description", ""),
-                                    goal
-                                )
-                            )
-                            event.update(ai_result)
-                            
-                            # Tích hợp tính năng tạo comment tự động
-                            from ai.comments import generate_comments
-                            comments = generate_comments(
+                    try:
+                        ai_result = (
+                            classify_event(
                                 event.get("title", ""),
                                 event.get("description", ""),
                                 goal
                             )
-                            if comments:
-                                event["suggested_comment"] = " | ".join(comments)
-                                
-                        except Exception as e:
-                            st.warning(f"AI Error: {e}")
-                    else:
-                        event["priority"] = "Low"
-                        event["interaction_tip"] = "Điểm liên quan thấp (< 50), bỏ qua đánh giá AI để tiết kiệm quota."
+                        )
+                        event.update(ai_result)
+                        
+                        # Tích hợp tính năng tạo comment tự động
+                        from ai.comments import generate_comments
+                        comments = generate_comments(
+                            event.get("title", ""),
+                            event.get("description", ""),
+                            goal
+                        )
+                        if comments:
+                            event["suggested_comment"] = " | ".join(comments)
+                            
+                    except Exception as e:
+                        st.warning(f"AI Error: {e}")
 
                     # Đảm bảo điểm hiển thị (score) không thấp hơn điểm nội bộ (_match_score)
                     current_score = event.get("score", 0)

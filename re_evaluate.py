@@ -68,12 +68,14 @@ for row in rows:
         priority = classification.get("priority", "High")
         buyer_persona = classification.get("buyer_persona", "Target Audience")
         industry = classification.get("industry", "Technology")
+        interaction_tip = classification.get("interaction_tip", "Join with a relevant question.")
     else:
         suggested_comment = ""
         score = rel_score
         priority = "Low"
         buyer_persona = "Unknown"
         industry = "General"
+        interaction_tip = "Join with a relevant question."
 
     
     # Update SQLite database
@@ -88,7 +90,7 @@ for row in rows:
                 buyer_persona=buyer_persona,
                 industry=industry,
                 suggested_comment=suggested_comment,
-                interaction_tip=classification.get("interaction_tip", "")
+                interaction_tip=interaction_tip
             )
         )
         conn.execute(stmt)

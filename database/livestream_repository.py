@@ -20,11 +20,18 @@ def save_to_excel(event: dict) -> bool:
         headers = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
 
         if os.path.exists(EXCEL_PATH):
-            wb = load_workbook(EXCEL_PATH)
-            ws = wb.active
-            # Cập nhật header nếu file Excel hiện tại chưa có các cột mới
-            if ws.max_column < len(headers):
-                ws.delete_rows(1, ws.max_row)
+            try:
+                wb = load_workbook(EXCEL_PATH)
+                ws = wb.active
+                # Cập nhật header nếu file Excel hiện tại chưa có các cột mới
+                if ws.max_column < len(headers):
+                    ws.delete_rows(1, ws.max_row)
+                    ws.append(headers)
+            except Exception as e:
+                print(f"[Excel Repair] File Excel bị lỗi ({e}) - tự động khởi tạo file mới...")
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Livestreams"
                 ws.append(headers)
         else:
             wb = Workbook()

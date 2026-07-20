@@ -1,11 +1,18 @@
 def calculate_relevance(event, analysis, goal=""):
-
     title = str(event.get('title', '')).lower()
     url = str(event.get('url', '')).lower()
     text = (
         f"{title} "
         f"{str(event.get('description', '')).lower()}"
     )
+
+    # 🛑 Tự động lọc bỏ 100% phòng livestream rác / lừa đảo (Spam & Scam streams)
+    spam_scam_patterns = [
+        "free robux", "roblox giving free", "free robux giveaway", 
+        "robux generator", "free adopt me", "giving free robux"
+    ]
+    if any(pattern in title for pattern in spam_scam_patterns):
+        return 0
 
     score = 0
 
@@ -109,41 +116,13 @@ def calculate_relevance(event, analysis, goal=""):
     if goal and goal.lower() in text:
         score += 5
 
-    # Dùng positive/negative keywords từ profile nếu có, fallback sang danh sách mặc định
-    positive_words = analysis.get("positive_keywords") or [
-        "webinar",
-        "conference",
-        "summit",
-        "networking",
-        "startup",
-        "founder",
-        "ceo",
-        "business",
-        "entrepreneur",
-        "saas",
-        "fundraising",
-        "investor",
-        "panel",
-    ]
-
+    # Dynamic positive/negative keywords from profile analysis if explicitly provided
+    positive_words = analysis.get("positive_keywords") or []
     for word in positive_words:
         if str(word).lower() in text:
             score += 5
 
-    negative_words = analysis.get("negative_keywords") or [
-        "gaming",
-        "minecraft",
-        "music",
-        "song",
-        "karaoke",
-        "anime",
-        "movie",
-        "football",
-        "valorant",
-        "roblox",
-        "pubg",
-    ]
-
+    negative_words = analysis.get("negative_keywords") or []
     for word in negative_words:
         if str(word).lower() in text:
             score -= 15

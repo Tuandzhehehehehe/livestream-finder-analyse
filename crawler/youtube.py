@@ -217,17 +217,73 @@ def is_valid_event(
     return True
 
 
+def crawl_youtube_live_web(keywords, limit=20):
+    """Playwright scraper cho YouTube Live streams (sp=CAM%253D) khi chưa có YOUTUBE_API_KEY."""
+    events = []
+    seen_urls = set()
+    from urllib.parse import quote_plus
+    from playwright.sync_api import sync_playwright
+    from crawler._browser import launch_context
+
+    try:
+        with sync_playwright() as p:
+            context = launch_context(p, "youtube_live", headless=True)
+            page = context.pages[0] if context.pages else context.new_page()
+
+            for kw in keywords[:4]:
+                if len(events) >= limit:
+                    break
+                url = f"https://www.youtube.com/results?search_query={quote_plus(kw)}&sp=CAM%253D"
+                try:
+                    print(f"[YouTube Live Web] Scraping live streams for: {kw}")
+                    page.goto(url, timeout=25000)
+                    page.wait_for_timeout(3000)
+                    items = page.query_selector_all("ytd-video-renderer")
+                    for item in items:
+                        title_elem = item.query_selector("#video-title")
+                        if not title_elem:
+                            continue
+                        title = title_elem.inner_text().strip()
+                        href = title_elem.get_attribute("href")
+                        if not href:
+                            continue
+                        if href.startswith("/"):
+                            href = f"https://www.youtube.com{href}"
+                        if href in seen_urls:
+                            continue
+                        seen_urls.add(href)
+
+                        desc_elem = item.query_selector("#description-text")
+                        desc = desc_elem.inner_text().strip() if desc_elem else ""
+
+                        events.append({
+                            "title": title,
+                            "platform": "YouTube",
+                            "url": href,
+                            "description": desc,
+                            "keyword": kw,
+                            "status": "LIVE",
+                            "start_time": "",
+                            "actual_start_time": "",
+                            "actual_end_time": ""
+                        })
+                        if len(events) >= limit:
+                            break
+                except Exception as e:
+                    print(f"[YouTube Live Web] Error for '{kw}': {e}")
+    except Exception as e:
+        print(f"[YouTube Live Web] Playwright error: {e}")
+
+    return events
+
+
 def crawl_youtube_live(
     keywords,
     limit=20
 ):
     if not youtube:
-        print("[YouTube Crawler] YOUTUBE_API_KEY chưa có - tự động dùng Web Search fallback cho YouTube...")
-        from crawler.web_search import crawl_web
-        web_events = crawl_web(keywords, limit=limit)
-        for ev in web_events:
-            ev["platform"] = "YouTube"
-        return web_events
+        print("[YouTube Crawler] YOUTUBE_API_KEY chưa có - tự động dùng Playwright Live Scraper cho YouTube...")
+        return crawl_youtube_live_web(keywords, limit=limit)
 
     events = []
     seen_urls = set()

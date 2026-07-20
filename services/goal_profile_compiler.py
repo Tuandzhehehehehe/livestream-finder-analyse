@@ -61,37 +61,36 @@ def compile_goal(goal: str) -> dict:
     """
     from ai.llm_client import generate, extract_json
 
-    prompt = f"""You are a market research assistant helping find relevant business livestreams and events.
+    prompt = f"""You are a search query optimizer helping find relevant livestreams, broadcasts, and online events for a user.
 
-User goal (in any language):
+User search goal (in any language):
 \"\"\"{goal}\"\"\"
 
-Your task: Analyze this goal and return a comprehensive structured profile as ONLY valid JSON.
+Your task: Analyze this search goal and return a natural, high-performing search profile as ONLY valid JSON.
 
 Return this exact structure:
 {{
-  "industries": ["list of 3-6 relevant business industries or fields"],
-  "personas": ["list of 3-5 job titles or roles of target audience"],
-  "topics": ["list of 8-15 specific searchable topics and keywords. Include SYNONYMS, related terms, and alternative phrasings. This is critical for finding events that use different terminology."],
-  "search_queries": ["list of 15-25 ready-to-use search queries combining topics with event terms like 'live', 'webinar', 'workshop', 'summit', 'online event'"],
-  "positive_keywords": ["list of 10-20 keywords that INCREASE relevance score if found in event title/description"],
-  "negative_keywords": ["list of 10-15 keywords that DECREASE relevance score (off-topic content like gaming, anime, music, sports etc.)"]
+  "industries": ["list of 3-6 relevant industries or domains"],
+  "personas": ["list of 3-5 target roles or personas"],
+  "topics": ["list of 8-15 core topics, synonyms, and alternative terms"],
+  "search_queries": ["list of 10-18 natural, diverse search queries combining core topics with terms like 'live', 'livestream', 'stream', 'online', 'event' - DO NOT over-use or force the word 'webinar'"],
+  "positive_keywords": ["list of 10-15 relevant keywords that match the goal"],
+  "negative_keywords": []
 }}
 
 Rules:
-- All queries and keywords must be in English (even if goal is in Vietnamese or other language)
-- Topics must include synonyms and related technical terms
-- Search queries should be diverse: some short (1-2 words), some long-tail (3-5 words)
-- Negative keywords should be generic off-topic terms, not topic-specific
+- All queries and keywords should be in English or the primary target language
+- Include natural search terms used by real viewers (e.g. 'charity live', 'charity stream', 'fundraising livestream')
+- Search queries should be natural and direct (1-4 words)
 
-Example for goal "bán mỹ phẩm" (selling cosmetics):
+Example for goal "charity":
 {{
-  "industries": ["beauty", "cosmetics", "skincare", "personal care", "ecommerce"],
-  "personas": ["beauty brand owner", "cosmetics retailer", "ecommerce seller", "beauty distributor", "skincare founder"],
-  "topics": ["beauty", "cosmetics", "skincare", "makeup", "personal care", "beauty ecommerce", "beauty brand", "skincare routine", "beauty startup", "cosmetics business", "beauty influencer", "beauty retail"],
-  "search_queries": ["beauty ecommerce live", "skincare webinar", "cosmetics founder livestream", "beauty brand summit", "skincare business workshop", "cosmetics retail webinar", "beauty startup event", "makeup tutorial live", "skincare online event", "beauty industry networking"],
-  "positive_keywords": ["beauty", "cosmetics", "skincare", "makeup", "personal care", "brand", "ecommerce", "retail", "founder", "business", "webinar", "summit", "networking"],
-  "negative_keywords": ["gaming", "anime", "music", "sports", "minecraft", "roblox", "pubg", "football", "movie", "song", "karaoke", "fitness", "cooking"]
+  "industries": ["non-profit", "charity", "fundraising", "social impact"],
+  "personas": ["donor", "volunteer", "charity organizer", "non-profit manager"],
+  "topics": ["charity", "nonprofit", "fundraiser", "donation", "giving", "social impact"],
+  "search_queries": ["charity live", "charity livestream", "fundraising live", "nonprofit livestream", "charity stream", "donation live", "social impact event", "charity online"],
+  "positive_keywords": ["charity", "nonprofit", "fundraising", "donation", "volunteer"],
+  "negative_keywords": []
 }}
 """
 
@@ -149,7 +148,7 @@ def _fallback_profile(goal: str) -> dict:
     }
     core = [w for w in words if w not in stop_words and len(w) > 2]
 
-    suffixes = ["live", "livestream", "webinar", "workshop", "online event", "summit"]
+    suffixes = ["live", "livestream", "stream", "online"]
     queries = [goal] + [f"{w} {s}" for w in core for s in suffixes]
 
     return {
@@ -158,9 +157,9 @@ def _fallback_profile(goal: str) -> dict:
         "industries": core,
         "personas": [],
         "topics": core,
-        "search_queries": queries[:20],
-        "positive_keywords": core + ["webinar", "conference", "summit", "networking", "founder", "business"],
-        "negative_keywords": ["gaming", "anime", "music", "sports", "minecraft", "roblox", "pubg", "football"],
+        "search_queries": queries[:15],
+        "positive_keywords": core,
+        "negative_keywords": [],
     }
 
 
