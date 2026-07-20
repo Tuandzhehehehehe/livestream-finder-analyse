@@ -11,21 +11,21 @@ EXCEL_PATH = os.path.normpath(EXCEL_PATH)
 
 def save_to_excel(event: dict) -> bool:
     """
-    Lưu thông tin livestream vào file Excel.
-    Cột định dạng: Tên, Location, Content, Ngày, YouTube, Meetup, X, TikTok, Eventbrite, LinkedIn
+    Lưu thông tin livestream vào file Excel kèm theo chỉ số đánh giá tiềm năng.
+    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, Meetup, X, TikTok, Eventbrite, LinkedIn
     """
     try:
         os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)
 
-        headers = ['Tên', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
+        headers = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
 
         if os.path.exists(EXCEL_PATH):
             wb = load_workbook(EXCEL_PATH)
             ws = wb.active
-            # Cập nhật header nếu file Excel hiện tại là phiên bản cũ
+            # Cập nhật header nếu file Excel hiện tại chưa có các cột mới
             if ws.max_column < len(headers):
-                for col_idx, header in enumerate(headers, 1):
-                    ws.cell(row=1, column=col_idx, value=header)
+                ws.delete_rows(1, ws.max_row)
+                ws.append(headers)
         else:
             wb = Workbook()
             ws = wb.active
@@ -38,7 +38,7 @@ def save_to_excel(event: dict) -> bool:
 
         url_exists = False
         for row in range(2, ws.max_row + 1):
-            for col in range(5, 11):
+            for col in range(10, 16):
                 cell_val = ws.cell(row=row, column=col).value
                 if cell_val and str(cell_val).strip() == url:
                     url_exists = True
@@ -50,25 +50,30 @@ def save_to_excel(event: dict) -> bool:
             return False
 
         title = event.get("title", "")
+        score = event.get("score", 0)
+        priority = event.get("priority", "Low")
+        buyer_persona = event.get("buyer_persona", "")
+        industry = event.get("industry", "")
+        suggested_comment = event.get("suggested_comment", "")
         location = event.get("platform", "")
         content = event.get("description", "")
         date = event.get("scheduled_start_time") or event.get("start_time") or ""
 
-        row_data = [title, location, content, date, "", "", "", "", "", ""]
+        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", "", "", "", ""]
 
         platform = str(event.get("platform", "")).lower().strip()
         if "youtube" in platform:
-            row_data[4] = url
-        elif "meetup" in platform:
-            row_data[5] = url
-        elif "x" in platform or "twitter" in platform:
-            row_data[6] = url
-        elif "tiktok" in platform:
-            row_data[7] = url
-        elif "eventbrite" in platform:
-            row_data[8] = url
-        elif "linkedin" in platform:
             row_data[9] = url
+        elif "meetup" in platform:
+            row_data[10] = url
+        elif "x" in platform or "twitter" in platform:
+            row_data[11] = url
+        elif "tiktok" in platform:
+            row_data[12] = url
+        elif "eventbrite" in platform:
+            row_data[13] = url
+        elif "linkedin" in platform:
+            row_data[14] = url
 
         ws.append(row_data)
         wb.save(EXCEL_PATH)
@@ -76,6 +81,7 @@ def save_to_excel(event: dict) -> bool:
     except Exception as e:
         print(f"❌ Lỗi khi lưu vào Excel: {e}")
         return False
+
 
 
 

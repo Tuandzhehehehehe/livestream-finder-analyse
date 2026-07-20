@@ -69,7 +69,12 @@ def crawl_web(keywords, limit=20, **kwargs):
                                     # Tìm năm trong title hoặc snippet
                                     years_found = [int(y) for y in _re.findall(r'\b(20\d{2})\b', title + ' ' + snippet)]
 
-                                    event_status = "UPCOMING"
+                                    text_lower = (title + " " + snippet).lower()
+                                    if any(kw in text_lower for kw in ["live", "livestream", "trực tiếp", "happening now", "watching now", "[live]"]):
+                                        event_status = "LIVE"
+                                    else:
+                                        event_status = "UPCOMING"
+
                                     skip = False
                                     if years_found:
                                         min_year = min(years_found)
@@ -82,6 +87,7 @@ def crawl_web(keywords, limit=20, **kwargs):
 
                                     if skip:
                                         continue
+
 
                                     events.append({
                                         "platform": "Web",

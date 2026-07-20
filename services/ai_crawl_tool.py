@@ -58,6 +58,27 @@ def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         results.append(event)
     return results
 
+def infer_event_status(event: Dict[str, Any]) -> str:
+    """Tự động nhận diện trạng thái LIVE nếu tiêu đề hoặc mô tả chứa các từ khóa phát trực tiếp."""
+    status = str(event.get("status", "")).upper()
+    if status == "LIVE":
+        return "LIVE"
+    
+    title = str(event.get("title", "")).lower()
+    desc = str(event.get("description", "")).lower()
+    text = f"{title} {desc}"
+    
+    live_keywords = [
+        "live", "livestream", "live stream", "trực tiếp", "phát trực tiếp", 
+        "happening now", "watching now", "online now", "[live]", "🔴 live", "live now"
+    ]
+    
+    if any(kw in text for kw in live_keywords):
+        return "LIVE"
+        
+    return status or "UPCOMING"
+
+
 def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
     """
     Loại bỏ các sự kiện đã quá cũ hoặc sai trạng thái:
@@ -73,7 +94,10 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
     results = []
 
     for event in events:
-        status = str(event.get("status", "")).upper()
+        # Tự động cập nhật status thông minh
+        event["status"] = infer_event_status(event)
+        status = event["status"]
+
 
         # --- Parse các mốc thời gian ---
         def _parse(dt_str):
@@ -159,7 +183,7 @@ def filter_and_score_events(
     filtered = [
         event
         for event in events
-        if event.get("_match_score", 0) >= 10  # Ngưỡng tối thiểu để lọc link không liên quan
+        if event.get("_match_score", 0) >= 50  # Ngưỡng tối thiểu để lọc link không liên quan (đã nâng lên >= 50)
     ]
 
     filtered.sort(
@@ -237,9 +261,19 @@ def crawl_livestreams_with_ai(
         platform_calls["eventbrite"] = crawl_eventbrite
 
     if platforms:
-        keys = [p.lower() for p in platforms]
+        expanded_keys = []
+        for p in platforms:
+            p_lower = str(p).lower().strip()
+            if p_lower in ("video platforms", "video_platforms", "video flatform", "video_flatform", "video", "📹 video platforms (youtube, tiktok)"):
+                expanded_keys.extend(["youtube", "tiktok"])
+            elif p_lower in ("event platforms", "event_platforms", "events", "🤝 event platforms (meetup, linkedin, eventbrite)"):
+                expanded_keys.extend(["meetup", "linkedin", "eventbrite"])
+            else:
+                expanded_keys.append(p_lower)
+        keys = list(dict.fromkeys(expanded_keys))
     else:
         keys = list(platform_calls.keys())
+
 
     # persistent cache using sqlite
     cache_enabled = bool(kwargs.get("cache", True))

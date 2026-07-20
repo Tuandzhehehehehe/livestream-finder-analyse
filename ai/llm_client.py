@@ -50,13 +50,14 @@ class LLMResponse:
 
 # ── Provider: Gemini ─────────────────────────────────────────────────────────
 def _try_gemini(prompt: str) -> Optional[LLMResponse]:
+    load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         return None
     try:
         from google import genai as _genai
         client = _genai.Client(api_key=api_key)
-        models = ["gemini-2.5-flash", "gemini-2.0-flash"]
+        models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
         for model in models:
             try:
                 response = client.models.generate_content(model=model, contents=prompt)
@@ -83,6 +84,7 @@ def _try_gemini(prompt: str) -> Optional[LLMResponse]:
 
 # ── Provider: Groq ───────────────────────────────────────────────────────────
 def _try_groq(prompt: str) -> Optional[LLMResponse]:
+    load_dotenv(override=True)
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return None
@@ -92,7 +94,7 @@ def _try_groq(prompt: str) -> Optional[LLMResponse]:
         models = [
             "llama-3.3-70b-versatile",   # Free, excellent quality
             "llama-3.1-8b-instant",       # Free, fast
-            "mixtral-8x7b-32768",         # Free, long context
+            "llama-3.2-3b-preview",       # Free, fast preview
         ]
         for model in models:
             try:
@@ -124,6 +126,7 @@ def _try_groq(prompt: str) -> Optional[LLMResponse]:
 
 # ── Provider: OpenAI ─────────────────────────────────────────────────────────
 def _try_openai(prompt: str) -> Optional[LLMResponse]:
+    load_dotenv(override=True)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -213,6 +216,7 @@ def generate(prompt: str, prefer: Optional[str] = None) -> LLMResponse:
 
 def available_providers() -> list[str]:
     """Trả về danh sách provider có API key cấu hình."""
+    load_dotenv(override=True)
     result = []
     if os.getenv("GEMINI_API_KEY"):
         result.append("gemini")

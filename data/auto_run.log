@@ -1,0 +1,25 @@
+2026-07-20 22:48:53,349 [INFO] ▶ Crawling goal: 'Tokenization livestream'
+2026-07-20 22:49:50,076 [INFO]   → Tìm được 20 event (sau filter/score)
+2026-07-20 22:49:50,182 [INFO]   ✔ Lưu: [Web] Webinar Series on Real World Asset Tokenization #1
+2026-07-20 22:49:50,264 [INFO]   ✔ Lưu: [Web] How Asset Tokenization Is Reshaping Access to Financial ...
+2026-07-20 22:49:50,345 [INFO]   ✔ Lưu: [Web] Real World Asset Tokenization - Beyond the Buzz
+2026-07-20 22:49:50,421 [INFO]   ✔ Lưu: [Web] Tokenization of Real World Assets using Blockchain
+2026-07-20 22:49:50,503 [INFO]   ✔ Lưu: [Web] Tokenization of Real World Assets using Blockchain | New Yor
+2026-07-20 22:49:50,587 [INFO]   ✔ Lưu: [Web] Tokenization of Real World Assets: A New Era of Investing ..
+2026-07-20 22:49:50,668 [INFO]   ✔ Lưu: [Web] Tokenization of Real World Assets using Blockchain | Seattle
+2026-07-20 22:49:50,749 [INFO]   ✔ Lưu: [Web] Blockchain White Paper Workshop
+2026-07-20 22:49:50,835 [INFO]   ✔ Lưu: [Web] Webinar: Blockchain Use Cases Course in Different Industries
+2026-07-20 22:49:50,920 [INFO]   ✔ Lưu: [Web] 🌐 LIVE: Understanding Blockchain Technology | The Future of 
+2026-07-20 22:49:51,003 [INFO]   ✔ Lưu: [Web] Discover Blockchain Events & Activities Online
+2026-07-20 22:49:51,084 [INFO]   ✔ Lưu: [Web] Blockchain Analytics Workshop
+2026-07-20 22:49:51,170 [INFO]   ✔ Lưu: [Meetup] Get Leads Online with AI (Live Workshop Preview)
+2026-07-20 22:49:51,252 [INFO]   ✔ Lưu: [Meetup] The class - Saigon Vietnamese learning meetup
+2026-07-20 22:49:51,330 [INFO]   ✔ Lưu: [Meetup] 𝘴𝘵𝘥::𝘯𝘦𝘳𝘥_𝘴𝘯𝘪𝘱𝘦, computer science meetup
+2026-07-20 22:49:51,417 [INFO]   ✔ Lưu: [Meetup] Saigon Digital Social
+2026-07-20 22:49:51,500 [INFO]   ✔ Lưu: [Meetup] Mundo Lingo Saigon - Thao Dien D. 2
+2026-07-20 22:49:51,587 [INFO]   ✔ Lưu: [Meetup] The BMAD Method for Context-Engineered AI Development  (Gues
+2026-07-20 22:49:51,670 [INFO]   ✔ Lưu: [Web] Open Standards for Tokenization: Why Interoperability Matter
+{"goal": "Tokenization livestream", "new_events": 19, "skipped": 1, "total_found": 20, "status": "ok", "timestamp": "2026-07-20T15:49:51.670819+00:00"}
+2026-07-20 22:49:51,671 [INFO]   ✅ Goal 'Tokenization livestream': 19 mới, 1 bỏ qua
+
+2026-07-20 22:49:51,671 [INFO] 🏁 Hoàn tất: 19 event mới, 1 bỏ qua, 0 lỗi

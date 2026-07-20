@@ -148,6 +148,26 @@ def calculate_relevance(event, analysis, goal=""):
         if str(word).lower() in text:
             score -= 15
 
+    # ── NEW: MiniLM Semantic Similarity NLP Model ────────────────────────────
+    try:
+        from ai.minilm_scorer import compute_minilm_score
+        target_queries = [goal] + keywords if goal else keywords
+        minilm_sim_score = compute_minilm_score(
+            title=event.get("title", ""),
+            description=event.get("description", ""),
+            target_queries=target_queries
+        )
+        event["minilm_score"] = minilm_sim_score
+        
+        # Combined score: lấy max giữa rule-based score và minilm_score
+        # nếu minilm_score cao (> 40) thì thưởng thêm điểm tương đồng ngữ nghĩa
+        final_score = max(score, int(minilm_sim_score))
+        if minilm_sim_score >= 60:
+            final_score += 10
+        score = final_score
+    except Exception as e:
+        print(f"[Relevance Filter] MiniLM error: {e}")
+
     return score
 
 

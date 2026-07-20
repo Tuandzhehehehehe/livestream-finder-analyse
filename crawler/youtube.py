@@ -15,16 +15,26 @@ API_KEY = os.getenv(
     "YOUTUBE_API_KEY"
 )
 
-if not API_KEY:
-    raise Exception(
-        "YOUTUBE_API_KEY not found in .env"
-    )
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
-youtube = build(
-    "youtube",
-    "v3",
-    developerKey=API_KEY
-)
+youtube = None
+if API_KEY:
+    try:
+        youtube = build(
+            "youtube",
+            "v3",
+            developerKey=API_KEY
+        )
+    except Exception as e:
+        print(f"[WARNING] Không thể khởi tạo YouTube API client: {e}")
+else:
+    print("[WARNING] YOUTUBE_API_KEY chưa được thiết lập trong .env - Sẽ bỏ qua YouTube crawler.")
+
 
 
 def search_by_event_type(
@@ -32,6 +42,8 @@ def search_by_event_type(
     event_type,
     limit=20
 ):
+    if not youtube:
+        return {}
 
     return (
         youtube.search()
@@ -43,6 +55,7 @@ def search_by_event_type(
             order="date",
             maxResults=limit,
             relevanceLanguage="en"
+
         )
         .execute()
     )
@@ -208,10 +221,17 @@ def crawl_youtube_live(
     keywords,
     limit=20
 ):
+    if not youtube:
+        print("[YouTube Crawler] YOUTUBE_API_KEY chưa có - tự động dùng Web Search fallback cho YouTube...")
+        from crawler.web_search import crawl_web
+        web_events = crawl_web(keywords, limit=limit)
+        for ev in web_events:
+            ev["platform"] = "YouTube"
+        return web_events
 
     events = []
-
     seen_urls = set()
+
 
     for keyword in keywords:
 

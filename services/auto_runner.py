@@ -7,12 +7,20 @@ Không cần mở Streamlit.
 Dùng thư viện `schedule` để lập lịch.
 """
 
+import sys
 import json
 import os
 import time
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 
 # ── Logger ──────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "auto_run.log"))
@@ -149,11 +157,13 @@ def run_once(
                     saved = save_event(event)
                     if saved:
                         new_count += 1
-                        logger.info(f"  ✔ Lưu: [{event.get('platform','?')}] {event.get('title','')[:60]}")
+                        score_str = f"Score: {event.get('score', 0)} | Priority: {event.get('priority', 'Low')}"
+                        logger.info(f"  ✔ Lưu: [{event.get('platform','?')}] [{score_str}] {event.get('title','')[:50]}")
                     else:
                         skipped_count += 1
                 except Exception as e:
                     logger.error(f"  Save error: {e}")
+
 
             summary["total_new"] += new_count
             summary["total_skipped"] += skipped_count

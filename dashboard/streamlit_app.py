@@ -1,8 +1,16 @@
 
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import inspect
 import os
 import streamlit as st
 import pandas as pd
+
 
 from services.search_agent import search_livestreams
 from services.ai_crawl_tool import crawl_livestreams_with_ai
@@ -109,14 +117,14 @@ with st.sidebar:
         key="ar_interval",
     )
 
-    ar_platforms_all = ["youtube", "meetup", "linkedin", "web"]
+    ar_platforms_all = ["📹 Video Platforms (YouTube, TikTok)", "youtube", "tiktok", "meetup", "linkedin", "x", "web"]
     if crawl_eventbrite:
         ar_platforms_all.append("eventbrite")
 
     ar_platforms = st.multiselect(
         "🌐 Platforms",
         ar_platforms_all,
-        default=["meetup", "linkedin"],
+        default=["📹 Video Platforms (YouTube, TikTok)"],
         key="ar_platforms",
     )
 
@@ -307,11 +315,12 @@ Ecommerce Seller
         )
 
         platform_options = [
+            "📹 Video Platforms (YouTube, TikTok)",
             "youtube",
-            "meetup",
-            "x",
             "tiktok",
+            "meetup",
             "linkedin",
+            "x",
             "web",
         ]
 
@@ -321,8 +330,10 @@ Ecommerce Seller
         selected_platforms = st.multiselect(
             "Nền tảng",
             platform_options,
-            default=["linkedin"] if "linkedin" in platform_options else platform_options,
+            default=["📹 Video Platforms (YouTube, TikTok)", "meetup", "linkedin", "web"],
+            help="Chọn các nền tảng để cào dữ liệu livestream/webinar",
         )
+
 
         enable_cache = st.checkbox(
             "Enable per-platform cache",
@@ -534,7 +545,7 @@ if search_btn:
 
                 if enable_ai:
                     match_score = event.get("_match_score", 0)
-                    if match_score >= 15:
+                    if match_score >= 50:
                         try:
                             ai_result = (
                                 classify_event(
@@ -559,7 +570,7 @@ if search_btn:
                             st.warning(f"AI Error: {e}")
                     else:
                         event["priority"] = "Low"
-                        event["interaction_tip"] = "Điểm liên quan thấp, bỏ qua đánh giá AI để tiết kiệm quota."
+                        event["interaction_tip"] = "Điểm liên quan thấp (< 50), bỏ qua đánh giá AI để tiết kiệm quota."
 
                     # Đảm bảo điểm hiển thị (score) không thấp hơn điểm nội bộ (_match_score)
                     current_score = event.get("score", 0)
