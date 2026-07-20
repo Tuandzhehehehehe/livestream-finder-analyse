@@ -1,4 +1,8 @@
+# pyrefly: ignore [missing-import]
 from sqlalchemy import insert, select, update, delete
+# pyrefly: ignore [missing-import]
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+# pyrefly: ignore [missing-import]
 from sqlalchemy.exc import IntegrityError
 import os
 from openpyxl import load_workbook, Workbook
@@ -82,103 +86,45 @@ def save_to_excel(event: dict) -> bool:
 def save_event(event: dict) -> bool:
     """
     Lưu 1 livestream vào database.
+    Dùng SQLite ON CONFLICT DO NOTHING để bỏ qua trùng lặp ở tầng DB một cách tối ưu.
 
     Returns:
         True  -> lưu thành công
         False -> livestream đã tồn tại hoặc lỗi
     """
-
     try:
-
         with engine.begin() as conn:
-
-            stmt = insert(
-                livestreams
-            ).values(
-
-                title=event["title"],
-
-                platform=event.get(
-                    "platform"
-                ),
-
-                description=event.get(
-                    "description"
-                ),
-
-                url=event["url"],
-
-                keyword=event.get(
-                    "keyword"
-                ),
-
-                status=event.get(
-                    "status"
-                ),
-
-                start_time=event.get(
-                    "start_time"
-                ),
-
-                scheduled_start_time=event.get(
-                    "scheduled_start_time"
-                ),
-
-                actual_start_time=event.get(
-                    "actual_start_time"
-                ),
-
-                actual_end_time=event.get(
-                    "actual_end_time"
-                ),
-
-                score=event.get(
-                    "score"
-                ),
-
-                industry=event.get(
-                    "industry"
-                ),
-
-                language=event.get(
-                    "language"
-                ),
-
-                buyer_persona=event.get(
-                    "buyer_persona"
-                ),
-
-                priority=event.get(
-                    "priority"
-                ),
-
-                interaction_tip=event.get(
-                    "interaction_tip"
-                ),
-
-                suggested_comment=event.get(
-                    "suggested_comment"
-                ),
+            stmt = (
+                sqlite_insert(livestreams)
+                .values(
+                    title=event["title"],
+                    platform=event.get("platform"),
+                    description=event.get("description"),
+                    url=event["url"],
+                    keyword=event.get("keyword"),
+                    status=event.get("status"),
+                    start_time=event.get("start_time"),
+                    scheduled_start_time=event.get("scheduled_start_time"),
+                    actual_start_time=event.get("actual_start_time"),
+                    actual_end_time=event.get("actual_end_time"),
+                    score=event.get("score"),
+                    industry=event.get("industry"),
+                    language=event.get("language"),
+                    buyer_persona=event.get("buyer_persona"),
+                    priority=event.get("priority"),
+                    interaction_tip=event.get("interaction_tip"),
+                    suggested_comment=event.get("suggested_comment"),
+                )
+                .on_conflict_do_nothing(index_elements=["url"])
             )
-
-            conn.execute(stmt)
-
-        save_to_excel(event)
-        return True
-
-    except IntegrityError:
-
-        print(
-            f"⚠️ Livestream đã tồn tại: {event.get('url')}"
-        )
-        save_to_excel(event)
-        return False
-
+            res = conn.execute(stmt)
+            if res.rowcount > 0:
+                save_to_excel(event)
+                return True
+            else:
+                return False
     except Exception as e:
-
-        print(
-            f"❌ Lỗi khi lưu livestream: {e}"
-        )
+        print(f"❌ Lỗi khi lưu livestream: {e}")
         return False
 
 
@@ -240,6 +186,7 @@ def get_event_by_url(
             conn.execute(stmt)
             .fetchone()
         )
+
 
 
 def update_classification_by_url(

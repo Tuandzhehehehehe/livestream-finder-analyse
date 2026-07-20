@@ -108,35 +108,9 @@ def build_queries(goal_analysis):
     return queries
 
 
-def normalize_event_url(url: str) -> str:
-    if not url:
-        return ""
-    if "youtube.com/watch" in url:
-        import urllib.parse as urlparse
-        parsed = urlparse.urlparse(url)
-        v = urlparse.parse_qs(parsed.query).get('v')
-        if v:
-            return f"https://youtube.com/watch?v={v[0]}"
-        return url
-    if "?" in url:
-        return url.split("?")[0]
-    return url
+from functools import lru_cache
+from services.ai_crawl_tool import normalize_event_url, deduplicate_events as deduplicate
 
-
-def deduplicate(events):
-    seen = set()
-    results = []
-    for event in events:
-        url = event.get("url", "")
-        if not url:
-            continue
-        normalized = normalize_event_url(url)
-        event["url"] = normalized
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        results.append(event)
-    return results
 
 
 def filter_relevant(
@@ -305,6 +279,11 @@ def search_livestreams(
     )
 
     events = []
+    seen_urls = set()
+
+    def _add_platform_events(new_items):
+        if new_items:
+            events.extend(deduplicate(new_items, seen=seen_urls))
 
     # =====================
     # YOUTUBE (dùng queries mở rộng)
@@ -323,9 +302,7 @@ def search_livestreams(
             f"YouTube: {len(youtube_events)}"
         )
 
-        events.extend(
-            youtube_events
-        )
+        _add_platform_events(youtube_events)
 
     except Exception as e:
 
@@ -350,9 +327,7 @@ def search_livestreams(
             f"Meetup: {len(meetup_events)}"
         )
 
-        events.extend(
-            meetup_events
-        )
+        _add_platform_events(meetup_events)
 
     except Exception as e:
 
@@ -378,9 +353,7 @@ def search_livestreams(
             f"X: {len(x_events)}"
         )
 
-        events.extend(
-            x_events
-        )
+        _add_platform_events(x_events)
 
     except Exception as e:
 
@@ -406,9 +379,7 @@ def search_livestreams(
             f"TikTok: {len(tiktok_events)}"
         )
 
-        events.extend(
-            tiktok_events
-        )
+        _add_platform_events(tiktok_events)
 
     except Exception as e:
 
@@ -436,9 +407,7 @@ def search_livestreams(
             f"LinkedIn: {len(linkedin_events)}"
         )
 
-        events.extend(
-            linkedin_events
-        )
+        _add_platform_events(linkedin_events)
 
     except Exception as e:
 
@@ -465,9 +434,7 @@ def search_livestreams(
                 f"Eventbrite: {len(eventbrite_events)}"
             )
 
-            events.extend(
-                eventbrite_events
-            )
+            _add_platform_events(eventbrite_events)
 
         except Exception as e:
 
@@ -487,7 +454,7 @@ def search_livestreams(
                 limit=platform_limits.get("web", 15) if platform_limits else 15
             )
             print(f"Web Search (Google): {len(web_events)}")
-            events.extend(web_events)
+            _add_platform_events(web_events)
         except Exception as e:
             print(f"Web Search Error: {e}")
 
@@ -495,9 +462,6 @@ def search_livestreams(
     # CLEAN
     # =====================
 
-    events = deduplicate(
-        events
-    )
     for event in events:
         event["_match_score"] = (
             calculate_relevance(

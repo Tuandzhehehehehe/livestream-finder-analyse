@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import concurrent.futures
+from functools import lru_cache
 from typing import List, Dict, Any
 
 from crawler.youtube import crawl_youtube_live
@@ -23,6 +24,7 @@ except Exception:
     crawl_eventbrite = None
 
 
+@lru_cache(maxsize=1024)
 def normalize_event_url(url: str) -> str:
     if not url:
         return ""
@@ -38,24 +40,22 @@ def normalize_event_url(url: str) -> str:
     return url
 
 
-def deduplicate_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def deduplicate_events(events: List[Dict[str, Any]], seen: set = None) -> List[Dict[str, Any]]:
     """
-    Loại bỏ trùng lặp URL trong phạm vi một phiên crawl.
-    Không check DB ở đây — một URL có thể liên quan đến nhiều chủ đề khác nhau.
-    Việc chống trùng vào DB chỉ xảy ra tại lúc save (IntegrityError).
+    Loại bỏ trùng lặp URL bằng Streaming / Memoized Normalization.
     """
-    seen = set()
+    if seen is None:
+        seen = set()
     results = []
     for event in events:
-        url = event.get("url", "")
-        if not url:
+        raw_url = event.get("url", "")
+        if not raw_url:
             continue
-        normalized = normalize_event_url(url)
-        event["url"] = normalized
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        results.append(event)
+        normalized = normalize_event_url(raw_url)
+        if normalized not in seen:
+            seen.add(normalized)
+            event["url"] = normalized
+            results.append(event)
     return results
 
 def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
@@ -326,6 +326,8 @@ def crawl_livestreams_with_ai(
             print(f"[AI Crawl Tool] {platform_name} error: {e}")
             return platform_name, [], e
 
+    seen_urls = set()
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_map = {}
         for platform in keys:
@@ -340,13 +342,11 @@ def crawl_livestreams_with_ai(
             try:
                 plat, res, err = fut.result(timeout=per_platform_timeout)
                 if res:
-                    events.extend(res)
+                    events.extend(deduplicate_events(res, seen=seen_urls))
             except concurrent.futures.TimeoutError:
                 print(f"[AI Crawl Tool] {platform} timed out after {per_platform_timeout}s")
             except Exception as e:
                 print(f"[AI Crawl Tool] future error for {platform}: {e}")
-
-    events = deduplicate_events(events)
 
     # Lọc sự kiện cũ/sai trạng thái trước khi score
     events = time_filter_events(events)
@@ -362,7 +362,6 @@ def crawl_livestreams_with_ai(
         fallback_analysis = build_fallback(goal)
         # Dùng queries từ profile nếu có, hoặc fallback queries
         fallback_queries = queries if queries else [goal]
-        fallback_events = []
 
         for platform in keys:
             crawler = platform_calls.get(platform)
@@ -372,14 +371,12 @@ def crawl_livestreams_with_ai(
             try:
                 print(f"[AI Crawl Tool] Fallback searching {platform}...")
                 results = crawler(fallback_queries, limit)
-                print(f"[AI Crawl Tool] fallback {platform} found {len(results)} items")
-                fallback_events.extend(results)
+                events.extend(deduplicate_events(results, seen=seen_urls))
             except Exception as e:
                 print(f"[AI Crawl Tool] fallback {platform} error: {e}")
 
             time.sleep(1)
 
-        events = deduplicate_events(fallback_events)
         analysis = fallback_analysis
         queries = fallback_queries
 
