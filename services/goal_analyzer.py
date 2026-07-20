@@ -1,10 +1,5 @@
-from google import genai
 import os
 import json
-
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
 
 
 def build_fallback(goal: str):

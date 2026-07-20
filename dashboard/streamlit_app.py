@@ -1,776 +1,327 @@
+"""
+dashboard/streamlit_app.py — AI Multi-Platform Livestream Finder Dashboard
+=============================================================================
+Modular Streamlit application for search, benchmarking, and auto-run status.
+"""
 
-import inspect
+import json
 import os
-import streamlit as st
+import time
+import urllib.parse
 import pandas as pd
+# pyrefly: ignore [missing-import]
+import streamlit as st
 
-from services.search_agent import search_livestreams
-from services.ai_crawl_tool import crawl_livestreams_with_ai
 from ai.classify import classify_event
-from database.livestream_repository import save_event
 from crawler.session_login import login_interactive_gui
-from services.goal_profile_compiler import get_or_compile, load_profile, list_profiles, delete_profile
+from database.livestream_repository import save_event
+from services.ai_crawl_tool import crawl_livestreams_with_ai
+from services.goal_profile_compiler import delete_profile, load_profile, list_profiles
+from services.search_agent import search_livestreams
 
 try:
     from crawler.eventbrite import crawl_eventbrite
 except Exception:
     crawl_eventbrite = None
 
-st.set_page_config(
-    page_title="AI Livestream Finder",
-    layout="wide",
-)
-
-# =====================================
-# SIDEBAR LOGIN MANAGEMENT
-# =====================================
-with st.sidebar:
-    st.write("## 🔑 Quản lý Đăng nhập")
-    st.info(
-        "Nhấn nút dưới để mở trình duyệt đăng nhập X, TikTok hoặc LinkedIn. "
-        "Hãy đăng nhập tài khoản của bạn, sau đó **đóng cửa sổ trình duyệt lại** để hoàn tất!"
-    )
-    
-    if st.button("Đăng nhập X (Twitter)", use_container_width=True):
-        with st.spinner("Đang mở trình duyệt đăng nhập X..."):
-            success, msg = login_interactive_gui("x")
-            if success:
-                st.success(msg)
-            else:
-                st.error(msg)
-                
-    if st.button("Đăng nhập TikTok", use_container_width=True):
-        with st.spinner("Đang mở trình duyệt đăng nhập TikTok..."):
-            success, msg = login_interactive_gui("tiktok")
-            if success:
-                st.success(msg)
-            else:
-                st.error(msg)
-
-    if st.button("Đăng nhập LinkedIn", use_container_width=True):
-        with st.spinner("Đang mở trình duyệt đăng nhập LinkedIn..."):
-            success, msg = login_interactive_gui("linkedin")
-            if success:
-                st.success(msg)
-            else:
-                st.error(msg)
-
-    st.write("---")
-    st.write("## 📊 Xuất dữ liệu")
-    excel_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
-    if os.path.exists(excel_path):
-        try:
-            with open(excel_path, "rb") as f:
-                excel_data = f.read()
-            st.download_button(
-                label="📥 Tải xuống file Excel",
-                data=excel_data,
-                file_name="livestreams.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                key="sidebar_download_excel"
-            )
-        except Exception as e:
-            st.error(f"Lỗi khi đọc file Excel: {e}")
-    else:
-        st.info("Chưa có dữ liệu Excel. Hãy thực hiện tìm kiếm.")
-
-    st.write("---")
-    st.write("## 🧠 Goal Profiles")
-    st.caption("Mỗi profile được compile 1 lần và tái sử dụng, tiết kiệm token AI")
-    all_profiles = list_profiles()
-    if all_profiles:
-        import json as _json
-        for p in all_profiles:
-            col_p, col_del = st.columns([3, 1])
-            with col_p:
-                st.markdown(f"**{p['goal']}**  \n⏰ {p['compiled_at']} — {p['query_count']} queries")
-            with col_del:
-                if st.button("🗑️", key=f"del_{p['file']}", help="Xóa profile này"):
-                    delete_profile(p['goal'])
-                    st.rerun()
-    else:
-        st.info("Chưa có profile nào.")
-
-    st.write("---")
-    st.write("## ⚙️ Auto-Run")
-    st.caption("Tự động crawl + classify + lưu DB theo lịch")
-
-    auto_run_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "auto_run.log"))
-
-    # ── Cấu hình interval ────────────────────────────────────────────
-    ar_interval = st.number_input(
-        "⏱ Khoảng cách giữa các lần crawl (giờ)",
-        min_value=0.5,
-        max_value=72.0,
-        value=24.0,
-        step=0.5,
-        help="Khuyên dùng ≥ 24h để API key (Gemini + YouTube) kịp reset quota hàng ngày",
-        key="ar_interval",
-    )
-
-    ar_platforms_all = ["youtube", "meetup", "linkedin", "web"]
-    if crawl_eventbrite:
-        ar_platforms_all.append("eventbrite")
-
-    ar_platforms = st.multiselect(
-        "🌐 Platforms",
-        ar_platforms_all,
-        default=["meetup", "linkedin"],
-        key="ar_platforms",
-    )
-
-    ar_col1, ar_col2 = st.columns(2)
-    with ar_col1:
-        ar_classify = st.checkbox("🤖 Auto-Classify", value=True, key="ar_classify")
-    with ar_col2:
-        ar_comment = st.checkbox("💬 Auto-Comment", value=False, key="ar_comment",
-                                  help="Tắt để tiết kiệm token AI")
-
-    # ── Nút chạy thủ công 1 lần ──────────────────────────────────────
-    if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
-        with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
-            try:
-                from services.auto_runner import run_once
-                summary = run_once(
-                    platforms=ar_platforms if ar_platforms else None,
-                    auto_classify=ar_classify,
-                    auto_comment=ar_comment,
-                )
-                st.success(
-                    f"✅ Hoàn tất! "
-                    f"**{summary['total_new']}** event mới | "
-                    f"**{summary['total_skipped']}** bỏ qua | "
-                    f"**{summary['profiles_run']}** profiles"
-                )
-                if summary["errors"]:
-                    st.warning(f"⚠️ {len(summary['errors'])} lỗi: " + "; ".join(summary["errors"][:2]))
-                st.rerun()
-            except Exception as e:
-                st.error(f"Lỗi: {e}")
-
-    # ── Lệnh terminal động theo cấu hình ─────────────────────────────
-    cmd_parts = [f"py auto_crawl.py --interval {ar_interval}"]
-    if ar_platforms:
-        cmd_parts.append(f"--platforms {' '.join(ar_platforms)}")
-    if not ar_classify:
-        cmd_parts.append("--no-classify")
-    if not ar_comment:
-        cmd_parts.append("--no-comment")
-
-    st.caption("💡 Để chạy theo lịch tự động, mở terminal mới và chạy:")
-    st.code(" ".join(cmd_parts), language="bash")
-    st.caption(f"⚠️ Khuyến nghị: interval ≥ 24h để tránh cạn quota API (hiện tại: **{ar_interval}h**)")
-
-    # ── Log gần nhất ─────────────────────────────────────────────────
-    if os.path.exists(auto_run_log_path):
-        try:
-            from services.auto_runner import read_log_entries
-            log_entries = read_log_entries(20)
-            if log_entries:
-                with st.expander("📋 Log Auto-Run gần nhất", expanded=False):
-                    log_rows = []
-                    for entry in log_entries:
-                        ts = entry.get("timestamp", "")[:16].replace("T", " ")
-                        goal = entry.get("goal", "")[:30]
-                        status = "✅" if entry.get("status") == "ok" else "❌"
-                        new_ev = entry.get("new_events", "-")
-                        skipped = entry.get("skipped", "-")
-                        log_rows.append({"Thời gian": ts, "Goal": goal, "Status": status, "Mới": new_ev, "Bỏ qua": skipped})
-                    if log_rows:
-                        st.dataframe(pd.DataFrame(log_rows), use_container_width=True, height=200)
-        except Exception:
-            pass
-
-    st.write("---")
-    st.write("## 🧠 AI Providers")
-    try:
-        from ai.llm_client import available_providers
-        providers = available_providers()
-        provider_labels = {
-            "gemini": "🟢 Gemini (Google)",
-            "groq": "🟢 Groq (Free — Llama/Mixtral)",
-            "openai": "🟢 OpenAI (GPT)",
-        }
-        all_providers = ["gemini", "groq", "openai"]
-        for p in all_providers:
-            if p in providers:
-                st.markdown(provider_labels.get(p, f"🟢 {p}"))
-            else:
-                st.markdown(f"🔴 {p.capitalize()} — *chưa có API key*")
-        if len(providers) < 2:
-            st.caption("💡 Thêm key vào `.env` để dùng nhiều provider, tránh hết quota:")
-            st.code("GROQ_API_KEY=gsk_...\nOPENAI_API_KEY=sk-...", language="text")
-    except Exception:
-        st.info("Không thể kiểm tra AI providers.")
-
-    st.write("---")
-    st.write("## 🪙 Lịch sử dùng Token AI")
-
-
-    token_log_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
-    if os.path.exists(token_log_path):
-        try:
-            import json, time
-            records = []
-            with open(token_log_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        d = json.loads(line)
-                        d["time"] = time.strftime('%H:%M:%S', time.localtime(d.get("timestamp")))
-                        records.append(d)
-                    except:
-                        pass
-            if records:
-                token_df = pd.DataFrame(records)
-                if not token_df.empty:
-                    token_df = token_df[["time", "model", "prompt_tokens", "candidate_tokens", "total_tokens"]]
-                    token_df.columns = ["Thời gian", "Model", "Prompt", "Candidate", "Total"]
-                    # Đảo ngược để hiển thị mới nhất lên trên (tuỳ chọn, nhưng thường table dễ nhìn hơn)
-                    token_df = token_df.iloc[::-1].reset_index(drop=True)
-                    
-                    st.dataframe(token_df, use_container_width=True, height=250)
-                    total_tokens = token_df["Total"].sum()
-                    st.info(f"**Tổng Token đã dùng:** {total_tokens}")
-        except Exception as e:
-            st.error(f"Lỗi khi đọc token log: {e}")
-    else:
-        st.info("Chưa có lịch sử dùng token.")
-
-st.title(
-    "🎯 AI Multi-Platform Livestream Finder"
-)
-
-st.caption(
-    "Tìm livestream, webinar, workshop, networking event bằng AI"
-)
-
-# =====================================
-# SEARCH FORM
-# =====================================
-
-with st.form("search_form"):
-
-    col1, col2 = st.columns(
-        [2, 1]
-    )
-
-    with col1:
-
-        goal = st.text_area(
-            "Bạn muốn tìm khách hàng ở lĩnh vực nào?",
-            placeholder="""
-Ví dụ:
-
-AI Automation cho doanh nghiệp
-
-Fintech Startup
-
-SaaS Founder
-
-Digital Marketing Agency
-
-Ecommerce Seller
-""",
-            height=180,
-        )
-
-    with col2:
-
-        status_filter = st.selectbox(
-            "Trạng thái",
-            [
-                "ALL",
-                "LIVE",
-                "UPCOMING",
-                "COMPLETED"
-            ],
-        )
-
-        enable_ai = st.checkbox(
-            "Đánh giá bằng AI",
-            value=False,
-        )
-
-        use_ai_crawl = st.checkbox(
-            "Sử dụng AI Crawl Tool",
-            value=True,
-        )
-
-        ai_mode = st.selectbox(
-            "Chế độ AI / Fallback",
-            [
-                "AI then Fallback",
-                "Fallback only",
-            ],
-            index=0,
-        )
-
-        platform_options = [
-            "youtube",
-            "meetup",
-            "x",
-            "tiktok",
-            "linkedin",
-            "web",
-        ]
-
-        if crawl_eventbrite:
-            platform_options.append("eventbrite")
-
-        selected_platforms = st.multiselect(
-            "Nền tảng",
-            platform_options,
-            default=["linkedin"] if "linkedin" in platform_options else platform_options,
-        )
-
-        enable_cache = st.checkbox(
-            "Enable per-platform cache",
-            value=True,
-        )
-
-        cache_ttl = st.number_input(
-            "Cache TTL (seconds)",
-            min_value=0,
-            max_value=86400,
-            value=300,
-        )
-
-        use_headless = st.checkbox(
-            "Use headless browser for X/TikTok/LinkedIn",
-            value=False,
-        )
-
-        force_recompile = st.checkbox(
-            "🔄 Compile lại profile (bỏ qua cache)",
-            value=False,
-            help="Bất nếu bạn muốn AI phân tích lại goal từ đầu"
-        )
-
-        limit = st.number_input(
-            "Số lượng",
-            min_value=1,
-            max_value=100,
-            value=20,
-        )
-
-        st.write("")
-        st.write("")
-
-        search_btn = st.form_submit_button(
-            "🔍 Tìm kiếm",
-            use_container_width=True,
-        )
-
-# =====================================
-# SEARCH
-# =====================================
-
-# Cache purge button must be outside the form per Streamlit rules
-if st.button("Xoá cache nền tảng"):
-    cache_db = os.path.join(os.path.dirname(__file__), "..", "data", "platform_cache.sqlite")
-    cache_db = os.path.normpath(cache_db)
-    try:
-        if os.path.exists(cache_db):
-            os.remove(cache_db)
-            st.success("Đã xóa cache nền tảng.")
-        else:
-            st.info("Không tìm thấy file cache.")
-    except Exception as e:
-        st.error(f"Lỗi khi xóa cache: {e}")
-
-
-if search_btn:
-
-    if not goal.strip():
-
-        st.warning(
-            "Vui lòng nhập mục tiêu tìm kiếm."
-        )
-
-        st.stop()
-
-    with st.spinner(
-        "🤖 AI đang phân tích mục tiêu..."
-    ):
-
-        if use_ai_crawl:
-
-            mode = "ai_then_fallback" if ai_mode == "AI then Fallback" else "fallback_only"
-
-
-
-            # call defensively in case runtime function signature differs
-            sig = inspect.signature(crawl_livestreams_with_ai)
-            kwargs = {
-                "per_platform_timeout": 20,
-                "cache": bool(enable_cache),
-                "cache_ttl": int(cache_ttl),
-                "use_headless": bool(use_headless),
-                "force_recompile": bool(force_recompile),
-            }
-
-            if "mode" in sig.parameters:
-                agent_result = crawl_livestreams_with_ai(
-                    goal,
-                    limit,
-                    platforms=selected_platforms,
-                    mode=mode,
-                    **kwargs,
-                )
-            else:
-                # older signature: (goal, limit, platforms=None)
-                agent_result = crawl_livestreams_with_ai(
-                    goal,
-                    limit,
-                    selected_platforms,
-                )
-
-        else:
-
-            agent_result = (
-                search_livestreams(
-                    goal,
-                    limit,
-                    use_headless=bool(use_headless),
-                )
-            )
-
-    queries = agent_result.get(
-        "queries",
-        []
-    )
-
-    events = agent_result.get(
-        "events",
-        []
-    )
-
-    st.write(
-        "### Search Queries"
-    )
-
-    st.write(
-        queries
-    )
-
-    # ---- Hiển thị thông tin Goal Profile đang dùng ----
-    used_profile = load_profile(goal)
-    if used_profile:
-        with st.expander("🧠 Thông tin Goal Profile đang dùng", expanded=False):
-            st.caption(f"⏰ Compiled lúc: **{used_profile.get('compiled_at', 'N/A')}**")
-            col_i, col_t = st.columns(2)
-            with col_i:
-                st.markdown("**Industries:**")
-                st.write(used_profile.get("industries", []))
-            with col_t:
-                st.markdown("**Topics:**")
-                st.write(used_profile.get("topics", []))
-            st.markdown(f"**Số search queries:** {len(used_profile.get('search_queries', []))}")
-            st.info("💡 Profile này được tái sử dụng, **không tốn thêm token AI**. Bật '🔄 Compile lại profile' nếu muốn cập nhật.")
-
-
-    if use_ai_crawl:
-        st.write(
-            f"**Mode:** {ai_mode}"
-        )
-        st.write(
-            f"**Fallback mode active:** {'Yes' if mode == 'fallback_only' else 'No'}"
-        )
-        st.write(
-            f"**Fallback branch executed:** {'Yes' if agent_result.get('used_fallback', False) else 'No'}"
-        )
-
-    if status_filter != "ALL":
-
-        events = [
-
-            event
-
-            for event in events
-
-            if event.get(
-                "status"
-            ) == status_filter
-        ]
-
-    st.success(
-        f"Tìm thấy {len(events)} sự kiện"
-    )
-
-    results = []
-
-    progress = st.progress(0)
-
-    status_placeholder = st.empty()
-
-    total = len(events)
-
-    if total == 0:
-
-        st.warning(
-            "Không tìm thấy livestream phù hợp."
-        )
-
-    else:
-
-        if status_filter == "COMPLETED":
-            events = [e for e in events if e.get("status") == "COMPLETED" and e.get("actual_start_time") and e.get("actual_end_time")]
-        else:
-            events = [e for e in events if status_filter == "ALL" or e.get("status") == status_filter]
-        
-        total = len(events)
-        
-        if total == 0:
-            st.warning("Không tìm thấy livestream phù hợp với bộ lọc hiện tại.")
-        else:
-            for index, event in enumerate(events):
-
-                current = index + 1
-
-                status_placeholder.info(
-                    f"⏳ Đang xử lý {current}/{total}"
-                )
-
-                if enable_ai:
-                    match_score = event.get("_match_score", 0)
-                    if match_score >= 15:
-                        try:
-                            ai_result = (
-                                classify_event(
-                                    event.get("title", ""),
-                                    event.get("description", ""),
-                                    goal
-                                )
-                            )
-                            event.update(ai_result)
-                            
-                            # Tích hợp tính năng tạo comment tự động
-                            from ai.comments import generate_comments
-                            comments = generate_comments(
-                                event.get("title", ""),
-                                event.get("description", ""),
-                                goal
-                            )
-                            if comments:
-                                event["suggested_comment"] = " | ".join(comments)
-                                
-                        except Exception as e:
-                            st.warning(f"AI Error: {e}")
-                    else:
-                        event["priority"] = "Low"
-                        event["interaction_tip"] = "Điểm liên quan thấp, bỏ qua đánh giá AI để tiết kiệm quota."
-
-                    # Đảm bảo điểm hiển thị (score) không thấp hơn điểm nội bộ (_match_score)
-                    current_score = event.get("score", 0)
-                    match_score = event.get("_match_score", 0)
-                    if match_score > current_score:
-                        event["score"] = match_score
-                        
-                    if event.get("score", 0) >= 80:
-                        event["priority"] = "High"
-                    elif event.get("score", 0) >= 50:
-                        event["priority"] = "Medium"
-
-                try:
-                    save_event(event)
-                except Exception:
-                    pass
-
-                results.append(event)
-
-                progress.progress(current / total)
-
-        status_placeholder.success(
-            f"✅ Hoàn thành {total} sự kiện"
-        )
-
-    # =====================================
-    # GOOGLE DORKING (OSINT)
-    # =====================================
-    st.write("---")
-    st.write("## 🌍 Tự động mở rộng tìm kiếm trên Google (OSINT)")
-    st.info("Vì lý do bảo mật, các bot tự động thường bị Google chặn. Tuy nhiên, bạn có thể tự mình bấm vào các liên kết bên dưới")
-    st.markdown("### Hoặc tự tìm thủ công trên Google (Google Dorking)")
-    st.write("Dưới đây là các đường link tìm kiếm chuyên sâu để bạn tự click vào nếu muốn tìm tay:")
-
-    import urllib.parse
-    dork_query1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{goal}"')
-    dork_query2 = urllib.parse.quote_plus(f'site:linkedin.com/posts/ "{goal}" (livestream OR webinar OR "virtual event") ("register" OR "join")')
-    dork_query3 = urllib.parse.quote_plus(f'"{goal}" (livestream OR webinar OR "virtual event") ("register" OR "tickets" OR "join" OR "save your spot") -news -blog')
-
-    st.markdown(f"- [Tìm Sự kiện chính thức trên LinkedIn (Events)](https://www.google.com/search?q={dork_query1})")
-    st.markdown(f"- [Tìm bài đăng kêu gọi Livestream/Webinar trên LinkedIn](https://www.google.com/search?q={dork_query2})")
-    st.markdown(f"- [Tìm Livestream/Webinar trên toàn bộ Internet (Bất kỳ Website nào)](https://www.google.com/search?q={dork_query3})")
-    st.write("---")
-
-    # =====================================
-    # TABLE
-    # =====================================
-
-    if results:
-
-        st.write(
-            "## KẾT QUẢ"
-        )
-
-        df = pd.DataFrame(
-            results
-        )
-
-        df = df.rename(
-            columns={
-                "title": "Tiêu đề",
-                "platform": "Nền tảng",
-                "status": "Trạng thái",
-                "industry": "Ngành nghề",
-                "language": "Ngôn ngữ",
-                "buyer_persona": "Khách hàng mục tiêu",
-                "score": "Điểm",
-                "priority": "Ưu tiên",
-                "interaction_tip": "Gợi ý tương tác",
-                "url": "Link",
-                "scheduled_start_time": "Scheduled Start",
-                "actual_start_time": "Actual Start",
-                "actual_end_time": "Actual End",
-            }
-        )
-
-        show_columns = [
-
-            col
-
-            for col in [
-
-                "Tiêu đề",
-
-                "Nền tảng",
-
-                "Trạng thái",
-
-                "Ngành nghề",
-
-                "Khách hàng mục tiêu",
-
-                "Điểm",
-
-                "Priority",
-
-                "Scheduled Start",
-                
-                "Actual Start",
-                
-                "Actual End",
-
-                "Link",
-
-            ]
-
-            if col in df.columns
-        ]
-
-        st.dataframe(
-            df[
-                show_columns
-            ],
-            use_container_width=True,
-        )
-
+st.set_page_config(page_title="AI Livestream Finder", layout="wide")
+
+
+# ── Sidebar UI ─────────────────────────────────────────────────────────────
+def render_sidebar():
+    with st.sidebar:
+        st.write("## 🔑 Quản lý Đăng nhập")
+        st.caption("Đăng nhập tài khoản X, TikTok hoặc LinkedIn và đóng cửa sổ khi hoàn tất.")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("X (Twitter)", use_container_width=True):
+                ok, msg = login_interactive_gui("x")
+                st.success(msg) if ok else st.error(msg)
+        with c2:
+            if st.button("TikTok", use_container_width=True):
+                ok, msg = login_interactive_gui("tiktok")
+                st.success(msg) if ok else st.error(msg)
+        with c3:
+            if st.button("LinkedIn", use_container_width=True):
+                ok, msg = login_interactive_gui("linkedin")
+                st.success(msg) if ok else st.error(msg)
+
+        st.write("---")
+        st.write("## 📊 Xuất dữ liệu")
         excel_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
         if os.path.exists(excel_path):
             try:
                 with open(excel_path, "rb") as f:
-                    excel_data = f.read()
-                st.download_button(
-                    label="📥 Tải xuống toàn bộ file Excel kết quả",
-                    data=excel_data,
-                    file_name="livestreams.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="download_excel_results"
-                )
+                    st.download_button("📥 Tải xuống Excel", f.read(), file_name="livestreams.xlsx", use_container_width=True, key="sidebar_excel")
             except Exception as e:
+                st.error(f"Lỗi Excel: {e}")
+        else:
+            st.info("Chưa có dữ liệu Excel.")
+
+        st.write("---")
+        st.write("## 🧠 Goal Profiles")
+        profiles = list_profiles()
+        if profiles:
+            for p in profiles:
+                col_p, col_del = st.columns([3, 1])
+                with col_p:
+                    st.markdown(f"**{p['goal']}**  \n⏰ {p['compiled_at'][:16]}")
+                with col_del:
+                    if st.button("🗑️", key=f"del_{p['file']}"):
+                        delete_profile(p['goal'])
+                        st.rerun()
+        else:
+            st.info("Chưa có profile nào.")
+
+        st.write("---")
+        st.write("## ⚙️ Auto-Run")
+        ar_interval = st.number_input("Interval (giờ)", min_value=0.5, max_value=72.0, value=24.0, step=0.5, key="ar_interval")
+        ar_platforms_all = ["youtube", "meetup", "linkedin", "web"] + (["eventbrite"] if crawl_eventbrite else [])
+        ar_platforms = st.multiselect("Platforms", ar_platforms_all, default=["meetup", "linkedin"], key="ar_platforms")
+
+        col_a1, col_a2 = st.columns(2)
+        ar_classify = col_a1.checkbox("Auto-Classify", value=True, key="ar_classify")
+        ar_comment = col_a2.checkbox("Auto-Comment", value=False, key="ar_comment")
+
+        if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
+            with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
+                try:
+                    from services.auto_runner import run_once
+                    summary = run_once(platforms=ar_platforms or None, auto_classify=ar_classify, auto_comment=ar_comment)
+                    st.success(f"✅ Hoàn tất! {summary['total_new']} mới | {summary['total_skipped']} bỏ qua")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Lỗi: {e}")
+
+        st.write("---")
+        st.write("## 🪙 Lịch sử Token AI")
+        token_log = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
+        if os.path.exists(token_log):
+            try:
+                records = []
+                with open(token_log, "r", encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            d = json.loads(line)
+                            d["time"] = time.strftime('%H:%M:%S', time.localtime(d.get("timestamp")))
+                            records.append(d)
+                        except Exception:
+                            pass
+                if records:
+                    df = pd.DataFrame(records)[["time", "model", "prompt_tokens", "candidate_tokens", "total_tokens"]].iloc[::-1]
+                    df.columns = ["Thời gian", "Model", "Prompt", "Candidate", "Total"]
+                    st.dataframe(df.head(20), use_container_width=True, height=200)
+                    st.info(f"**Tổng Token:** {df['Total'].sum():,}")
+            except Exception:
                 pass
 
-        # =====================================
-        # DETAILS
-        # =====================================
 
-        st.write(
-            "## CHI TIẾT"
-        )
+# ── Benchmark Tab ─────────────────────────────────────────────────────────
+def render_benchmark_tab():
+    st.header("⚡ Crawler Performance & Token Waste Benchmark")
+    st.caption("Đánh giá độ trễ, sản lượng và lượng Token lãng phí theo nền tảng.")
 
+    c1, c2 = st.columns([2, 1])
+    bm_goal = c1.text_input("Mục tiêu Benchmark", value="AI in HR", key="bm_goal")
+    bm_limit = c2.number_input("Số lượng / platform", min_value=1, max_value=50, value=10, key="bm_limit")
+
+    bm_opts = ["youtube", "meetup", "web", "linkedin", "x", "tiktok"] + (["eventbrite"] if crawl_eventbrite else [])
+    bm_platforms = st.multiselect("Nền tảng benchmark", bm_opts, default=bm_opts, key="bm_platforms")
+
+    o1, o2, o3 = st.columns(3)
+    bm_classify = o1.checkbox("Classify AI", value=True, key="bm_classify")
+    bm_comment = o2.checkbox("Comment AI", value=True, key="bm_comment")
+    bm_cache = o3.checkbox("Dùng Cache", value=False, key="bm_cache")
+
+    if st.button("🚀 Bắt đầu Benchmark", type="primary", use_container_width=True, key="run_bm"):
+        with st.spinner("⚡ Đang tính toán chỉ số Benchmark..."):
+            try:
+                from services.benchmarker import BenchmarkRunner
+                runner = BenchmarkRunner(
+                    goal=bm_goal, platforms=bm_platforms or None, limit=bm_limit,
+                    use_ai_classify=bm_classify, use_ai_comment=bm_comment, use_cache=bm_cache,
+                )
+                report = runner.run()
+                st.session_state["last_benchmark_report"] = report
+                st.success("✅ Hoàn tất Benchmark!")
+            except Exception as e:
+                st.error(f"Lỗi Benchmark: {e}")
+
+    report = st.session_state.get("last_benchmark_report")
+    if report:
+        st.write("---")
+        st.subheader("📊 Kết quả Benchmark Gần Nhất")
+        om, tm = report.get("overall_metrics", {}), report.get("token_metrics", {})
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Thời gian", f"{report.get('duration_seconds', 0)}s")
+        m2.metric("Leads chất lượng", f"{om.get('useful_leads_saved', 0)}")
+        m3.metric("Tổng Token", f"{tm.get('total_tokens_consumed', 0):,}")
+        m4.metric("Lãng phí Token", f"{tm.get('token_waste_percentage', 0)}%", delta=f"-{tm.get('wasted_tokens', 0):,} tokens", delta_color="inverse")
+
+        pb = report.get("platform_breakdown", {})
+        if pb:
+            df_pb = pd.DataFrame.from_dict(pb, orient="index").reset_index().rename(columns={
+                "index": "Nền tảng", "latency_seconds": "Độ trễ (s)", "raw_count": "Sự kiện thô",
+                "dedup_count": "Sau Dedup", "scored_count": "Đạt Điểm", "avg_score": "Điểm TB", "throughput_items_per_sec": "Tốc độ (sps)"
+            })
+            st.dataframe(df_pb[["Nền tảng", "Độ trễ (s)", "Sự kiện thô", "Sau Dedup", "Đạt Điểm", "Điểm TB", "Tốc độ (sps)"]], use_container_width=True)
+            st.bar_chart(df_pb.set_index("Nền tảng")[["Độ trễ (s)"]])
+
+        wb = tm.get("waste_breakdown", {})
+        if wb:
+            w1, w2, w3 = st.columns(3)
+            w1.metric("Lãng phí Score < 20", f"{wb.get('low_relevance_waste', 0):,} tokens")
+            w2.metric("Lãng phí Trùng DB", f"{wb.get('duplicate_waste', 0):,} tokens")
+            w3.metric("Lãng phí Sự kiện cũ", f"{wb.get('expired_time_waste', 0):,} tokens")
+
+    st.write("---")
+    st.subheader("📜 Báo cáo Benchmark đã lưu")
+    try:
+        from services.benchmarker import list_benchmark_reports
+        past = list_benchmark_reports(10)
+        if past:
+            df_past = pd.DataFrame([{
+                "Tên file": r.get("_filename", ""),
+                "Thời gian": r.get("timestamp", "")[:19].replace("T", " "),
+                "Goal": r.get("goal", ""),
+                "Thời gian (s)": r.get("duration_seconds", 0),
+                "Tổng Token": r.get("token_metrics", {}).get("total_tokens_consumed", 0),
+                "Lãng phí (%)": r.get("token_metrics", {}).get("token_waste_percentage", 0),
+            } for r in past])
+            st.dataframe(df_past, use_container_width=True)
+    except Exception as e:
+        st.error(f"Lỗi báo cáo: {e}")
+
+
+# ── Search Tab ────────────────────────────────────────────────────────────
+def render_search_tab():
+    with st.form("search_form"):
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            goal = st.text_area("Bạn muốn tìm khách hàng ở lĩnh vực nào?", placeholder="Ví dụ: AI Automation, SaaS Founder, Fintech Startup", height=180)
+
+        with col2:
+            status_filter = st.selectbox("Trạng thái", ["ALL", "LIVE", "UPCOMING", "COMPLETED"])
+            enable_ai = st.checkbox("Đánh giá bằng AI", value=False)
+            use_ai_crawl = st.checkbox("Sử dụng AI Crawl Tool", value=True)
+            ai_mode = st.selectbox("Chế độ AI / Fallback", ["AI then Fallback", "Fallback only"], index=0)
+
+            plat_opts = ["youtube", "meetup", "x", "tiktok", "linkedin", "web"] + (["eventbrite"] if crawl_eventbrite else [])
+            selected_platforms = st.multiselect("Nền tảng", plat_opts, default=["linkedin"] if "linkedin" in plat_opts else plat_opts)
+
+            enable_cache = st.checkbox("Enable per-platform cache", value=True)
+            cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
+            use_headless = st.checkbox("Use headless browser for X/TikTok/LinkedIn", value=False)
+            force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
+            limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
+
+            search_btn = st.form_submit_button("🔍 Tìm kiếm", use_container_width=True)
+
+    if st.button("Xoá cache nền tảng"):
+        cache_db = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "platform_cache.sqlite"))
+        if os.path.exists(cache_db):
+            os.remove(cache_db)
+            st.success("Đã xóa cache nền tảng.")
+
+    if search_btn:
+        if not goal.strip():
+            st.warning("Vui lòng nhập mục tiêu tìm kiếm.")
+            st.stop()
+
+        with st.spinner("🤖 AI đang phân tích mục tiêu..."):
+            if use_ai_crawl:
+                mode = "ai_then_fallback" if ai_mode == "AI then Fallback" else "fallback_only"
+                agent_result = crawl_livestreams_with_ai(
+                    goal, limit, platforms=selected_platforms, mode=mode,
+                    per_platform_timeout=20, cache=bool(enable_cache), cache_ttl=int(cache_ttl),
+                    use_headless=bool(use_headless), force_recompile=bool(force_recompile),
+                )
+            else:
+                agent_result = search_livestreams(goal, limit, use_headless=bool(use_headless))
+
+        queries = agent_result.get("queries", [])
+        events = agent_result.get("events", [])
+
+        st.write("### Search Queries", queries)
+
+        profile = load_profile(goal)
+        if profile:
+            with st.expander("🧠 Thông tin Goal Profile đang dùng", expanded=False):
+                st.caption(f"⏰ Compiled: {profile.get('compiled_at', 'N/A')}")
+                st.markdown(f"**Industries:** {profile.get('industries', [])}")
+                st.markdown(f"**Topics:** {profile.get('topics', [])}")
+
+        if status_filter != "ALL":
+            events = [e for e in events if e.get("status") == status_filter]
+
+        st.success(f"Tìm thấy {len(events)} sự kiện")
+        if not events:
+            st.warning("Không tìm thấy livestream phù hợp.")
+            return
+
+        results = []
+        progress = st.progress(0)
+        status_ph = st.empty()
+        total = len(events)
+
+        for index, event in enumerate(events):
+            status_ph.info(f"⏳ Đang xử lý {index + 1}/{total}")
+            if enable_ai and event.get("_match_score", 0) >= 15:
+                try:
+                    event.update(classify_event(event.get("title", ""), event.get("description", ""), goal))
+                    from ai.comments import generate_comments
+                    comments = generate_comments(event.get("title", ""), event.get("description", ""), goal)
+                    if comments:
+                        event["suggested_comment"] = " | ".join(comments)
+                except Exception as e:
+                    st.warning(f"AI Error: {e}")
+
+            save_event(event)
+            results.append(event)
+            progress.progress((index + 1) / total)
+
+        status_ph.success(f"✅ Hoàn thành {total} sự kiện")
+
+        # OSINT Google Dorking Links
+        st.write("---")
+        st.write("## 🌍 Google Dorking (OSINT)")
+        q1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{goal}"')
+        q2 = urllib.parse.quote_plus(f'site:linkedin.com/posts/ "{goal}" (livestream OR webinar OR "virtual event")')
+        st.markdown(f"- [Sự kiện LinkedIn](https://www.google.com/search?q={q1})")
+        st.markdown(f"- [Bài đăng Webinar LinkedIn](https://www.google.com/search?q={q2})")
+
+        # Results Table & Expanders
+        st.write("---")
+        st.write("## KẾT QUẢ")
+        df = pd.DataFrame(results)
+        cols = [c for c in ["title", "platform", "status", "industry", "buyer_persona", "score", "priority", "url"] if c in df.columns]
+        st.dataframe(df[cols], use_container_width=True)
+
+        st.write("## CHI TIẾT")
+        icons = {"YouTube": "📺", "Meetup": "🤝", "Eventbrite": "🎟️", "LinkedIn": "💼"}
         for event in results:
+            icon = icons.get(event.get("platform"), "📌")
+            with st.expander(f"{icon} {event.get('title')}"):
+                st.write(f"**Platform:** {event.get('platform')} | **Status:** {event.get('status')} | **Score:** {event.get('score')}")
+                st.write(f"**Buyer Persona:** {event.get('buyer_persona')}")
+                st.write(f"**URL:** {event.get('url')}")
+                st.write(f"**Suggested Comment:** {event.get('suggested_comment')}")
 
-            platform_icon = {
 
-                "YouTube": "📺",
+# ── Main Entrypoint ───────────────────────────────────────────────────────
+def main():
+    render_sidebar()
+    st.title("🎯 AI Multi-Platform Livestream Finder")
+    st.caption("Tìm livestream, webinar, workshop, networking event bằng AI")
 
-                "Meetup": "🤝",
+    tab_search, tab_benchmark = st.tabs(["🔍 Tìm kiếm Livestream", "⚡ Benchmark & Token Waste"])
+    with tab_search:
+        render_search_tab()
+    with tab_benchmark:
+        render_benchmark_tab()
 
-                "Eventbrite": "🎟️",
 
-                "Twitch": "🎮",
-
-                "LinkedIn": "💼",
-            }
-
-            icon = platform_icon.get(
-                event.get(
-                    "platform"
-                ),
-                "📌"
-            )
-
-            with st.expander(
-
-                f"{icon} {event.get('title')}"
-
-            ):
-
-                st.write(
-                    f"**Platform:** {event.get('platform')}"
-                )
-
-                st.write(
-                    f"**Status:** {event.get('status')}"
-                )
-
-                st.write(
-                    f"**Industry:** {event.get('industry')}"
-                )
-
-                st.write(
-                    f"**Score:** {event.get('score')}"
-                )
-
-                st.write(
-                    f"**Language:** {event.get('language')}"
-                )
-
-                st.write(
-                    f"**Buyer Persona:** {event.get('buyer_persona')}"
-                )
-
-                st.write(
-                    f"**Scheduled Start:** {event.get('scheduled_start_time')}"
-                )
-
-                st.write(
-                    f"**Actual Start:** {event.get('actual_start_time')}"
-                )
-
-                st.write(
-                    f"**Actual End:** {event.get('actual_end_time')}"
-                )
-
-                st.write(
-                    f"**Reason:** {event.get('reason')}"
-                )
-
-                st.write(
-                    f"**URL:** {event.get('url')}"
-                )
-
-                st.write(
-                    f"**Suggested Comment:** {event.get('suggested_comment')}"
-                )
+if __name__ == "__main__":
+    main()

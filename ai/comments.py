@@ -33,7 +33,7 @@ Return ONLY valid JSON in the following format:
 """
 
     try:
-        response = generate(prompt)  # Gemini → Groq → OpenAI fallback
+        response = generate(prompt, category="comment")  # Gemini → Groq → OpenAI fallback
         text = extract_json(response.text)
         result = json.loads(text)
         return result.get("suggestions", [])
