@@ -1,7 +1,7 @@
 {
   "goal": "Charity",
-  "compiled_at": "2026-07-21T00:52:10",
-  "compiled_by": "groq/llama-3.1-8b-instant",
+  "compiled_at": "2026-07-21T23:32:17",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
   "industries": [
     "non-profit",
     "charity",
@@ -14,7 +14,7 @@
     "volunteer",
     "charity organizer",
     "non-profit manager",
-    "social entrepreneur"
+    "philanthropist"
   ],
   "topics": [
     "charity",
@@ -24,9 +24,11 @@
     "giving",
     "social impact",
     "philanthropy",
-    "volunteer work",
+    "volunteering",
     "community service",
-    "aid"
+    "fundraising event",
+    "charity run",
+    "charity walk"
   ],
   "search_queries": [
     "charity live",
@@ -37,13 +39,12 @@
     "donation live",
     "social impact event",
     "charity online",
-    "charity event",
-    "fundraising event",
-    "nonprofit live",
-    "giving back",
-    "volunteer livestream",
-    "aid livestream",
-    "philanthropy live"
+    "live charity event",
+    "charity fundraising stream",
+    "online charity auction",
+    "charity telethon",
+    "live charity auction",
+    "charity marathon stream"
   ],
   "positive_keywords": [
     "charity",
@@ -51,10 +52,10 @@
     "fundraising",
     "donation",
     "volunteer",
-    "social impact",
     "philanthropy",
-    "giving back",
-    "aid"
+    "giving",
+    "social impact",
+    "community service"
   ],
   "negative_keywords": []
 }

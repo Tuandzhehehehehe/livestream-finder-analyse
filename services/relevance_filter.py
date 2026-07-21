@@ -6,6 +6,20 @@ def calculate_relevance(event, analysis, goal=""):
         f"{str(event.get('description', '')).lower()}"
     )
 
+    # 🛑 1. Active Learning Spam Classifier (Solution 1)
+    try:
+        from ai.spam_classifier import predict_spam
+        is_spam, spam_prob = predict_spam(
+            title=event.get("title", ""),
+            description=event.get("description", "")
+        )
+        event["spam_probability"] = spam_prob
+        if is_spam:
+            event["is_spam_detected"] = True
+            return 0
+    except Exception as e:
+        print(f"[Relevance Filter] Spam Classifier error: {e}")
+
     # 🛑 Tự động lọc bỏ 100% phòng livestream rác / lừa đảo (Spam & Scam streams)
     spam_scam_patterns = [
         "free robux", "roblox giving free", "free robux giveaway", 
@@ -39,7 +53,6 @@ def calculate_relevance(event, analysis, goal=""):
             score += 40
             
     # Nếu có trong nội dung (description), rất quan trọng cho các sự kiện
-    # không để keyword ở title (ví dụ: title="Web3 Summit", nội dung="Bàn về tokenization")
     for keyword in keywords:
         if keyword in text:
             score += 20
@@ -53,52 +66,29 @@ def calculate_relevance(event, analysis, goal=""):
     if event_keyword and event_keyword in text:
         score += 10
 
-    # Platform trust boost: nếu nền tảng trả về sự kiện này dựa trên từ khóa tìm kiếm
-    # nhưng từ khóa không xuất hiện trong đoạn văn bản cào được (vì nó nằm trong nội dung
-    # chi tiết chưa cào hết), ta vẫn tin tưởng kết quả của nền tảng và cấp điểm cơ sở.
-    if event_keyword:
-        for kw in keywords:
-            if kw and (kw in event_keyword or event_keyword in kw or
-                       any(part in event_keyword for part in kw.split()) or
-                       any(part in kw for part in event_keyword.split())):
-                score += 15
-                break
-
-    # ── NEW: Platform query boost ──────────────────────────────────────────────
-    # Các nền tảng như LinkedIn, Meetup, Eventbrite có hệ thống tìm kiếm riêng.
-    # Nếu họ trả về sự kiện dựa trên từ khóa gốc (không hậu tố), điều đó chứng tỏ
-    # từ khóa tồn tại ở đâu đó trong nội dung chi tiết của sự kiện — dù chúng ta
-    # chưa cào được. Ta cấp điểm cơ sở để sự kiện vượt qua bộ lọc score > 0.
     PLATFORM_QUERY_TRUST = {"linkedin", "meetup", "eventbrite"}
     platform = str(event.get("platform", "")).lower().strip()
     if any(p in platform for p in PLATFORM_QUERY_TRUST):
         if event_keyword:
             keyword_is_relevant = False
             for kw in keywords:
-                # Chỉ match khi keyword đầy đủ có trong event_keyword hoặc ngược lại
-                # Không dùng partial word match để tránh false positive
                 if kw and len(kw) > 2 and (
                     kw in event_keyword
                     or event_keyword in kw
                 ):
                     keyword_is_relevant = True
                     break
-            # Chỉ cấp điểm tin cậy nếu title cũng chứa keyword (không chỉ dựa vào search query)
             if keyword_is_relevant:
-                # Kiểm tra title có chứa ít nhất 1 keyword không
                 title_text = str(event.get("title", "")).lower()
                 title_has_keyword = any(
                     kw and len(kw) > 2 and kw in title_text
                     for kw in keywords
                 )
                 if title_has_keyword:
-                    score = max(score, 15)  # Chỉ boost khi title cũng match
+                    score = max(score, 15)
                 else:
-                    score = max(score, 5)   # Boost nhẹ nếu chỉ keyword match
-    # ── END: Platform query boost ──────────────────────────────────────────────
+                    score = max(score, 5)
 
-    # Intersection bonus: if the goal contains multiple distinct keywords (e.g. charity, tokenization)
-    # and both are matched in the text, give a massive relevance boost!
     if goal:
         import re
         goal_words = re.findall(r'[a-zA-Z0-9]+', goal.lower())
@@ -110,13 +100,11 @@ def calculate_relevance(event, analysis, goal=""):
         if len(core_terms) >= 2:
             matched_core_terms = [t for t in core_terms if t in text]
             if len(matched_core_terms) >= 2:
-                # Add a big bonus for matching multiple core search concepts
                 score += len(matched_core_terms) * 20
 
     if goal and goal.lower() in text:
         score += 5
 
-    # Dynamic positive/negative keywords from profile analysis if explicitly provided
     positive_words = analysis.get("positive_keywords") or []
     for word in positive_words:
         if str(word).lower() in text:
@@ -127,7 +115,7 @@ def calculate_relevance(event, analysis, goal=""):
         if str(word).lower() in text:
             score -= 15
 
-    # ── NEW: MiniLM Semantic Similarity NLP Model ────────────────────────────
+    # ── MiniLM Semantic Similarity NLP Model ────────────────────────────
     try:
         from ai.minilm_scorer import compute_minilm_score
         target_queries = [goal] + keywords if goal else keywords
@@ -138,14 +126,27 @@ def calculate_relevance(event, analysis, goal=""):
         )
         event["minilm_score"] = minilm_sim_score
         
-        # Combined score: lấy max giữa rule-based score và minilm_score
-        # nếu minilm_score cao (> 40) thì thưởng thêm điểm tương đồng ngữ nghĩa
         final_score = max(score, int(minilm_sim_score))
         if minilm_sim_score >= 60:
             final_score += 10
         score = final_score
     except Exception as e:
         print(f"[Relevance Filter] MiniLM error: {e}")
+
+    # ── Solution 2: Zero-Shot Cross-Encoder Scorer ──────────────────────
+    try:
+        from ai.cross_encoder_scorer import compute_cross_encoder_score
+        if goal:
+            ce_score = compute_cross_encoder_score(
+                title=event.get("title", ""),
+                description=event.get("description", ""),
+                goal=goal
+            )
+            event["cross_encoder_score"] = ce_score
+            if ce_score >= 60:
+                score = max(score, int(ce_score))
+    except Exception as e:
+        print(f"[Relevance Filter] Cross-Encoder error: {e}")
 
     return score
 

@@ -391,27 +391,21 @@ if st.button("Xoá cache nền tảng"):
         st.error(f"Lỗi khi xóa cache: {e}")
 
 
+if "search_data" not in st.session_state:
+    st.session_state["search_data"] = None
+
+
 if search_btn:
 
     if not goal.strip():
-
-        st.warning(
-            "Vui lòng nhập mục tiêu tìm kiếm."
-        )
-
+        st.warning("Vui lòng nhập mục tiêu tìm kiếm.")
         st.stop()
 
-    with st.spinner(
-        "🤖 AI đang phân tích mục tiêu..."
-    ):
+    with st.spinner("🤖 AI đang phân tích mục tiêu..."):
 
         if use_ai_crawl:
-
             mode = "ai_then_fallback" if ai_mode == "AI then Fallback" else "fallback_only"
 
-
-
-            # call defensively in case runtime function signature differs
             sig = inspect.signature(crawl_livestreams_with_ai)
             kwargs = {
                 "per_platform_timeout": 20,
@@ -430,7 +424,6 @@ if search_btn:
                     **kwargs,
                 )
             else:
-                # older signature: (goal, limit, platforms=None)
                 agent_result = crawl_livestreams_with_ai(
                     goal,
                     limit,
@@ -438,93 +431,26 @@ if search_btn:
                 )
 
         else:
-
-            agent_result = (
-                search_livestreams(
-                    goal,
-                    limit,
-                    use_headless=bool(use_headless),
-                )
+            agent_result = search_livestreams(
+                goal,
+                limit,
+                use_headless=bool(use_headless),
             )
 
-    queries = agent_result.get(
-        "queries",
-        []
-    )
-
-    events = agent_result.get(
-        "events",
-        []
-    )
-
-    st.write(
-        "### Search Queries"
-    )
-
-    st.write(
-        queries
-    )
-
-    # ---- Hiển thị thông tin Goal Profile đang dùng ----
-    used_profile = load_profile(goal)
-    if used_profile:
-        with st.expander("🧠 Thông tin Goal Profile đang dùng", expanded=False):
-            st.caption(f"⏰ Compiled lúc: **{used_profile.get('compiled_at', 'N/A')}**")
-            col_i, col_t = st.columns(2)
-            with col_i:
-                st.markdown("**Industries:**")
-                st.write(used_profile.get("industries", []))
-            with col_t:
-                st.markdown("**Topics:**")
-                st.write(used_profile.get("topics", []))
-            st.markdown(f"**Số search queries:** {len(used_profile.get('search_queries', []))}")
-            st.info("💡 Profile này được tái sử dụng, **không tốn thêm token AI**. Bật '🔄 Compile lại profile' nếu muốn cập nhật.")
-
-
-    if use_ai_crawl:
-        st.write(
-            f"**Mode:** {ai_mode}"
-        )
-        st.write(
-            f"**Fallback mode active:** {'Yes' if mode == 'fallback_only' else 'No'}"
-        )
-        st.write(
-            f"**Fallback branch executed:** {'Yes' if agent_result.get('used_fallback', False) else 'No'}"
-        )
+    queries = agent_result.get("queries", [])
+    events = agent_result.get("events", [])
 
     if status_filter != "ALL":
-
-        events = [
-
-            event
-
-            for event in events
-
-            if event.get(
-                "status"
-            ) == status_filter
-        ]
-
-    st.success(
-        f"Tìm thấy {len(events)} sự kiện"
-    )
+        events = [event for event in events if event.get("status") == status_filter]
 
     results = []
-
     progress = st.progress(0)
-
     status_placeholder = st.empty()
-
     total = len(events)
 
     if total == 0:
-
-        st.warning(
-            "Không tìm thấy livestream phù hợp."
-        )
-
+        st.warning("Không tìm thấy livestream phù hợp.")
     else:
-
         if status_filter == "COMPLETED":
             events = [e for e in events if e.get("status") == "COMPLETED" and e.get("actual_start_time") and e.get("actual_end_time")]
         else:
@@ -536,25 +462,18 @@ if search_btn:
             st.warning("Không tìm thấy livestream phù hợp với bộ lọc hiện tại.")
         else:
             for index, event in enumerate(events):
-
                 current = index + 1
-
-                status_placeholder.info(
-                    f"⏳ Đang xử lý {current}/{total}"
-                )
+                status_placeholder.info(f"⏳ Đang xử lý {current}/{total}")
 
                 if enable_ai:
                     try:
-                        ai_result = (
-                            classify_event(
-                                event.get("title", ""),
-                                event.get("description", ""),
-                                goal
-                            )
+                        ai_result = classify_event(
+                            event.get("title", ""),
+                            event.get("description", ""),
+                            goal
                         )
                         event.update(ai_result)
                         
-                        # Tích hợp tính năng tạo comment tự động
                         from ai.comments import generate_comments
                         comments = generate_comments(
                             event.get("title", ""),
@@ -567,7 +486,6 @@ if search_btn:
                     except Exception as e:
                         st.warning(f"AI Error: {e}")
 
-                    # Đảm bảo điểm hiển thị (score) không thấp hơn điểm nội bộ (_match_score)
                     current_score = event.get("score", 0)
                     match_score = event.get("_match_score", 0)
                     if match_score > current_score:
@@ -584,41 +502,47 @@ if search_btn:
                     pass
 
                 results.append(event)
-
                 progress.progress(current / total)
 
-        status_placeholder.success(
-            f"✅ Hoàn thành {total} sự kiện"
-        )
+        status_placeholder.success(f"✅ Hoàn thành {total} sự kiện")
 
-    # =====================================
-    # GOOGLE DORKING (OSINT)
-    # =====================================
-    st.write("---")
-    st.write("## 🌍 Tự động mở rộng tìm kiếm trên Google (OSINT)")
-    st.info("Vì lý do bảo mật, các bot tự động thường bị Google chặn. Tuy nhiên, bạn có thể tự mình bấm vào các liên kết bên dưới")
-    st.markdown("### Hoặc tự tìm thủ công trên Google (Google Dorking)")
-    st.write("Dưới đây là các đường link tìm kiếm chuyên sâu để bạn tự click vào nếu muốn tìm tay:")
+    # Store search results into session state so button clicks don't clear results!
+    st.session_state["search_data"] = {
+        "goal": goal,
+        "queries": queries,
+        "agent_result": agent_result,
+        "results": results,
+        "ai_mode": ai_mode,
+        "mode": mode if use_ai_crawl else "search"
+    }
 
-    import urllib.parse
-    dork_query1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{goal}"')
-    dork_query2 = urllib.parse.quote_plus(f'site:linkedin.com/posts/ "{goal}" (livestream OR webinar OR "virtual event") ("register" OR "join")')
-    dork_query3 = urllib.parse.quote_plus(f'"{goal}" (livestream OR webinar OR "virtual event") ("register" OR "tickets" OR "join" OR "save your spot") -news -blog')
 
-    st.markdown(f"- [Tìm Sự kiện chính thức trên LinkedIn (Events)](https://www.google.com/search?q={dork_query1})")
-    st.markdown(f"- [Tìm bài đăng kêu gọi Livestream/Webinar trên LinkedIn](https://www.google.com/search?q={dork_query2})")
-    st.markdown(f"- [Tìm Livestream/Webinar trên toàn bộ Internet (Bất kỳ Website nào)](https://www.google.com/search?q={dork_query3})")
-    st.write("---")
+# =====================================
+# RENDER RESULTS FROM SESSION STATE
+# =====================================
+if st.session_state["search_data"] is not None:
+    sdata = st.session_state["search_data"]
+    s_goal = sdata.get("goal", "")
+    queries = sdata.get("queries", [])
+    agent_result = sdata.get("agent_result", {})
+    results = sdata.get("results", [])
 
-    # =====================================
-    # TABLE
-    # =====================================
+    st.write("### Search Queries")
+    st.write(queries)
 
-    if results:
-
-        st.write(
-            "## KẾT QUẢ"
-        )
+    used_profile = load_profile(s_goal)
+    if used_profile:
+        with st.expander("🧠 Thông tin Goal Profile đang dùng", expanded=False):
+            st.caption(f"⏰ Compiled lúc: **{used_profile.get('compiled_at', 'N/A')}**")
+            col_i, col_t = st.columns(2)
+            with col_i:
+                st.markdown("**Industries:**")
+                st.write(used_profile.get("industries", []))
+            with col_t:
+                st.markdown("**Topics:**")
+                st.write(used_profile.get("topics", []))
+            st.markdown(f"**Số search queries:** {len(used_profile.get('search_queries', []))}")
+            st.info("💡 Profile này được tái sử dụng, **không tốn thêm token AI**. Bật '🔄 Compile lại profile' nếu muốn cập nhật.")
 
         df = pd.DataFrame(
             results
@@ -780,3 +704,39 @@ if search_btn:
                 st.write(
                     f"**Suggested Comment:** {event.get('suggested_comment')}"
                 )
+
+                st.write("---")
+                st.write("🤖 **Huấn luyện Mô hình AI (Active Learning):**")
+                col_fb1, col_fb2 = st.columns(2)
+                event_url = str(event.get('url') or event.get('title'))
+                btn_key_good = f"fb_good_{hash(event_url)}"
+                btn_key_spam = f"fb_spam_{hash(event_url)}"
+
+                with col_fb1:
+                    if st.button("👍 Đúng Tiềm Năng", key=btn_key_good):
+                        from ai.spam_classifier import add_user_feedback
+                        add_user_feedback(
+                            title=event.get("title", ""),
+                            description=event.get("description", ""),
+                            label=1,
+                            url=event_url
+                        )
+                        st.toast("✅ Đã ghi nhận phản hồi tích cực! Mô hình AI đã được tự động huấn luyện lại (0.1s).", icon="✅")
+
+                with col_fb2:
+                    if st.button("👎 Báo Spam / Rác", key=btn_key_spam):
+                        from ai.spam_classifier import add_user_feedback
+                        add_user_feedback(
+                            title=event.get("title", ""),
+                            description=event.get("description", ""),
+                            label=0,
+                            url=event_url
+                        )
+                        # Xóa thẻ kết quả này khỏi giao diện hiện tại để không phải load lại từ đầu
+                        if st.session_state.get("search_data") and "results" in st.session_state["search_data"]:
+                            st.session_state["search_data"]["results"] = [
+                                item for item in st.session_state["search_data"]["results"]
+                                if str(item.get("url") or item.get("title")) != event_url
+                            ]
+                        st.toast("🚫 Đã học & tự động ẩn kết quả rác khỏi danh sách!", icon="🚫")
+                        st.rerun()
