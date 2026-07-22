@@ -218,7 +218,7 @@ def is_valid_event(
 
 
 def crawl_youtube_live_web(keywords, limit=20):
-    """Playwright scraper cho YouTube Live streams (sp=CAM%253D) khi chưa có YOUTUBE_API_KEY."""
+    """Playwright scraper cho YouTube Live streams: Tự động truy cập trang tìm kiếm và chọn tab Live/Trực tiếp."""
     events = []
     seen_urls = set()
     from urllib.parse import quote_plus
@@ -233,12 +233,39 @@ def crawl_youtube_live_web(keywords, limit=20):
             for kw in keywords[:4]:
                 if len(events) >= limit:
                     break
-                url = f"https://www.youtube.com/results?search_query={quote_plus(kw)}&sp=CAM%253D"
+                url = f"https://www.youtube.com/results?search_query={quote_plus(kw)}"
                 try:
-                    print(f"[YouTube Live Web] Scraping live streams for: {kw}")
+                    print(f"[YouTube Live Web] Truy cập tìm kiếm YouTube cho: '{kw}'...")
                     page.goto(url, timeout=25000)
-                    page.wait_for_timeout(3000)
+                    page.wait_for_timeout(2000)
+
+                    # Tự động tìm và bấm vào chip/tab "Live" hoặc "Trực tiếp"
+                    chips = page.query_selector_all("yt-chip-cloud-chip-renderer")
+                    live_chip = None
+                    for chip in chips:
+                        chip_text = str(chip.inner_text() or "").strip().lower()
+                        if chip_text in ["live", "trực tiếp"]:
+                            live_chip = chip
+                            break
+
+                    if live_chip:
+                        print(f"[YouTube Live Web] Bấm tab '{live_chip.inner_text().strip()}'...")
+                        live_chip.click()
+                        page.wait_for_timeout(3000)
+                    else:
+                        print("[YouTube Live Web] Không thấy chip 'Live' - Thử bấm nút Bộ lọc (Filters)...")
+                        filter_btn = page.query_selector("ytd-toggle-button-renderer:has-text('Filters'), ytd-toggle-button-renderer:has-text('Bộ lọc')")
+                        if filter_btn:
+                            filter_btn.click()
+                            page.wait_for_timeout(1000)
+                            live_opt = page.query_selector("ytd-search-filter-renderer:has-text('Live'), ytd-search-filter-renderer:has-text('Trực tiếp')")
+                            if live_opt:
+                                live_opt.click()
+                                page.wait_for_timeout(3000)
+
                     items = page.query_selector_all("ytd-video-renderer")
+                    print(f"[YouTube Live Web] Tìm thấy {len(items)} video trong tab Live")
+
                     for item in items:
                         title_elem = item.query_selector("#video-title")
                         if not title_elem:
@@ -270,9 +297,9 @@ def crawl_youtube_live_web(keywords, limit=20):
                         if len(events) >= limit:
                             break
                 except Exception as e:
-                    print(f"[YouTube Live Web] Error for '{kw}': {e}")
+                    print(f"[YouTube Live Web] Lỗi cào cho từ khóa '{kw}': {e}")
     except Exception as e:
-        print(f"[YouTube Live Web] Playwright error: {e}")
+        print(f"[YouTube Live Web] Lỗi Playwright: {e}")
 
     return events
 
