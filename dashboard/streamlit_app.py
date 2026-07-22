@@ -380,17 +380,96 @@ def render_search_tab():
                         st.rerun()
 
 
+# ── AI Provider & Token Tracker Tab ──────────────────────────────────────
+def render_ai_status_tab():
+    st.header("🤖 AI Providers & Token Usage Tracker")
+    st.caption("Kiểm tra kết nối các AI Provider (Gemini, Groq, OpenAI) và theo dõi lượng Token tiêu thụ theo thời gian thực.")
+
+    # 1. AI Provider Status
+    st.subheader("🔑 Trạng thái AI Provider APIs")
+    col_g, col_gr, col_o = st.columns(3)
+
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    groq_key = os.getenv("GROQ_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+
+    with col_g:
+        st.metric("Gemini API", "Hoạt động ✅" if gemini_key else "Chưa cấu hình ❌")
+        if gemini_key:
+            st.caption(f"Key: {gemini_key[:8]}...{gemini_key[-4:]}")
+
+    with col_gr:
+        st.metric("Groq API (Llama-3.3)", "Hoạt động ✅" if groq_key else "Chưa cấu hình ❌")
+        if groq_key:
+            st.caption(f"Key: {groq_key[:8]}...{groq_key[-4:]}")
+
+    with col_o:
+        st.metric("OpenAI API (GPT-4o)", "Hoạt động ✅" if openai_key else "Chưa cấu hình ❌")
+        if openai_key:
+            st.caption(f"Key: {openai_key[:8]}...{openai_key[-4:]}")
+
+    st.write("---")
+
+    # 2. Token Usage Statistics
+    st.subheader("🪙 Lịch sử & Thống kê Token tiêu thụ")
+    token_log = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log"))
+
+    if os.path.exists(token_log):
+        records = []
+        try:
+            import time as _time
+            with open(token_log, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        d = json.loads(line)
+                        d["time"] = _time.strftime("%Y-%m-%d %H:%M:%S", _time.localtime(d.get("timestamp")))
+                        records.append(d)
+                    except Exception:
+                        pass
+        except Exception as e:
+            st.error(f"Lỗi đọc log token: {e}")
+
+        if records:
+            df = pd.DataFrame(records)
+            total_tokens = int(df["total_tokens"].sum()) if "total_tokens" in df else 0
+            prompt_tokens = int(df["prompt_tokens"].sum()) if "prompt_tokens" in df else 0
+            candidate_tokens = int(df["candidate_tokens"].sum()) if "candidate_tokens" in df else 0
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Tổng Request AI", f"{len(df):,}")
+            m2.metric("Prompt Tokens", f"{prompt_tokens:,}")
+            m3.metric("Candidate Tokens", f"{candidate_tokens:,}")
+            m4.metric("TỔNG TOKENS", f"{total_tokens:,}")
+
+            st.write("### 📜 Lịch sử chi tiết lượt gọi AI mới nhất")
+            display_df = df[["time", "model", "category", "prompt_tokens", "candidate_tokens", "total_tokens"]].iloc[::-1]
+            display_df.columns = ["Thời gian", "Model / Provider", "Mục đích (Category)", "Prompt", "Candidate", "Total Tokens"]
+            st.dataframe(display_df.head(100), use_container_width=True, height=350)
+        else:
+            st.info("Chưa có ghi nhận sử dụng token nào trong file log.")
+    else:
+        st.info("Chưa có file log token (`data/token_usage.log`). Hãy thực hiện lượt tìm kiếm AI đầu tiên!")
+
+
 # ── Main Entrypoint ───────────────────────────────────────────────────────
 def main():
     render_sidebar()
     st.title("🎯 AI Multi-Platform Livestream Finder")
     st.caption("Tìm livestream, webinar, workshop, networking event bằng AI")
 
-    tab_search, tab_benchmark = st.tabs(["🔍 Tìm kiếm Livestream", "⚡ Benchmark & Token Waste"])
+    tab_search, tab_benchmark, tab_ai = st.tabs([
+        "🔍 Tìm kiếm Livestream", 
+        "⚡ Benchmark & Token Waste", 
+        "🤖 Trạng thái AI & Token Tracker"
+    ])
     with tab_search:
         render_search_tab()
     with tab_benchmark:
         render_benchmark_tab()
+    with tab_ai:
+        render_ai_status_tab()
 
 
 if __name__ == "__main__":
