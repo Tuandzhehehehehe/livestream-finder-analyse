@@ -11,6 +11,13 @@ from dotenv import load_dotenv
 # pyrefly: ignore [missing-import]
 from googleapiclient.discovery import build
 
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 load_dotenv()
 
 
@@ -231,16 +238,16 @@ def crawl_youtube_live(keywords: list, limit: int = 20) -> list:
                         events.append(build_event(snippet, video_id, keyword, keyword, status_upper, details))
                 except Exception as e:
                     err_str = str(e)
-                    print(f"Error crawling query '{query}': {e}")
+                    print(f"Error crawling keyword '{keyword}' ({status}): {e}")
                     if "quota" in err_str.lower() or "429" in err_str or "rateLimitExceeded" in err_str:
-                        print("[YouTube Crawler] ⚠️ YouTube API hết Quota (429) -> Tự động chuyển sang Playwright Live Scraper cho YouTube...")
+                        print("[YouTube Crawler] [WARNING] YouTube API hết Quota (429) -> Tự động chuyển sang Playwright Live Scraper cho YouTube...")
                         return crawl_youtube_live_web(keywords, limit=limit)
 
         except Exception as e:
             print(f"Error expanding keyword '{keyword}': {e}")
 
     if not events:
-        print("[YouTube Crawler] ⚠️ Không có kết quả từ API -> Fallback sang Playwright Live Scraper cho YouTube...")
+        print("[YouTube Crawler] [WARNING] Không có kết quả từ API -> Fallback sang Playwright Live Scraper cho YouTube...")
         return crawl_youtube_live_web(keywords, limit=limit)
 
     priority = {"LIVE": 0, "UPCOMING": 1}
