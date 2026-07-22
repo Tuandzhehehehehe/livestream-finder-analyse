@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Token usage logger ───────────────────────────────────────────────────────
-def _log_token(provider: str, model: str, prompt_tokens: int, completion_tokens: int):
+def _log_token(provider: str, model: str, prompt_tokens: int, completion_tokens: int, category: str = "general"):
     try:
         log_file = os.path.join(os.path.dirname(__file__), "..", "data", "token_usage.log")
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
@@ -30,6 +30,7 @@ def _log_token(provider: str, model: str, prompt_tokens: int, completion_tokens:
             "prompt_tokens": prompt_tokens,
             "candidate_tokens": completion_tokens,
             "total_tokens": prompt_tokens + completion_tokens,
+            "category": category,
         }
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
@@ -49,7 +50,7 @@ class LLMResponse:
 
 
 # ── Provider: Gemini ─────────────────────────────────────────────────────────
-def _try_gemini(prompt: str) -> Optional[LLMResponse]:
+def _try_gemini(prompt: str, category: str = "general") -> Optional[LLMResponse]:
     load_dotenv(override=True)
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -66,7 +67,8 @@ def _try_gemini(prompt: str) -> Optional[LLMResponse]:
                 if usage:
                     _log_token("gemini", model,
                                getattr(usage, "prompt_token_count", 0),
-                               getattr(usage, "candidates_token_count", 0))
+                               getattr(usage, "candidates_token_count", 0),
+                               category=category)
                 print(f"[LLM] Gemini/{model} OK")
                 return LLMResponse(text, "gemini", model)
             except Exception as e:
@@ -83,7 +85,7 @@ def _try_gemini(prompt: str) -> Optional[LLMResponse]:
 
 
 # ── Provider: Groq ───────────────────────────────────────────────────────────
-def _try_groq(prompt: str) -> Optional[LLMResponse]:
+def _try_groq(prompt: str, category: str = "general") -> Optional[LLMResponse]:
     load_dotenv(override=True)
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -107,7 +109,7 @@ def _try_groq(prompt: str) -> Optional[LLMResponse]:
                 text = resp.choices[0].message.content or ""
                 usage = resp.usage
                 if usage:
-                    _log_token("groq", model, usage.prompt_tokens, usage.completion_tokens)
+                    _log_token("groq", model, usage.prompt_tokens, usage.completion_tokens, category=category)
                 print(f"[LLM] Groq/{model} OK")
                 return LLMResponse(text, "groq", model)
             except Exception as e:
@@ -125,7 +127,7 @@ def _try_groq(prompt: str) -> Optional[LLMResponse]:
 
 
 # ── Provider: OpenAI ─────────────────────────────────────────────────────────
-def _try_openai(prompt: str) -> Optional[LLMResponse]:
+def _try_openai(prompt: str, category: str = "general") -> Optional[LLMResponse]:
     load_dotenv(override=True)
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -145,7 +147,7 @@ def _try_openai(prompt: str) -> Optional[LLMResponse]:
                 text = resp.choices[0].message.content or ""
                 usage = resp.usage
                 if usage:
-                    _log_token("openai", model, usage.prompt_tokens, usage.completion_tokens)
+                    _log_token("openai", model, usage.prompt_tokens, usage.completion_tokens, category=category)
                 print(f"[LLM] OpenAI/{model} OK")
                 return LLMResponse(text, "openai", model)
             except Exception as e:
@@ -173,13 +175,14 @@ _PROVIDER_FNS = {
 _disabled: set = set()
 
 
-def generate(prompt: str, prefer: Optional[str] = None) -> LLMResponse:
+def generate(prompt: str, prefer: Optional[str] = None, category: str = "general") -> LLMResponse:
     """
     Gọi AI với fallback tự động qua các provider theo thứ tự ưu tiên.
     
     Args:
         prompt: Nội dung prompt
         prefer: Provider ưu tiên (None = dùng thứ tự mặc định)
+        category: Mục đích gọi AI (general, goal_compile, classify, comment)
     
     Returns:
         LLMResponse với .text, .provider, .model
@@ -201,7 +204,7 @@ def generate(prompt: str, prefer: Optional[str] = None) -> LLMResponse:
         if not fn:
             continue
         try:
-            result = fn(prompt)
+            result = fn(prompt, category=category)
             if result is not None:
                 return result
         except Exception as e:

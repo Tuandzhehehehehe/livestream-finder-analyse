@@ -1,0 +1,63 @@
+{
+  "timestamp": "2026-07-20T06:46:39.054071+00:00",
+  "goal": "Deep Optimization Test",
+  "duration_seconds": 1.87,
+  "compile_time_seconds": 0.0,
+  "platforms": [
+    "meetup",
+    "web"
+  ],
+  "overall_metrics": {
+    "total_raw_events": 3,
+    "total_dedup_events": 3,
+    "total_relevance_passed": 0,
+    "total_high_priority": 0,
+    "useful_leads_saved": 0,
+    "overall_dedup_rate": 0.0
+  },
+  "platform_breakdown": {
+    "meetup": {
+      "latency_seconds": 1.608,
+      "raw_count": 3,
+      "dedup_count": 3,
+      "valid_time_count": 3,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 1.87,
+      "error": null
+    },
+    "web": {
+      "latency_seconds": 0.261,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.0,
+      "error": "BrowserType.launch_persistent_context: Executable doesn't exist at /home/Dx/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     playwright install                                     ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+    }
+  },
+  "token_metrics": {
+    "total_prompt_tokens": 0,
+    "total_candidate_tokens": 0,
+    "total_tokens_consumed": 0,
+    "useful_tokens": 0,
+    "wasted_tokens": 0,
+    "waste_breakdown": {
+      "low_relevance_waste": 0,
+      "duplicate_waste": 0,
+      "expired_time_waste": 0
+    },
+    "token_waste_percentage": 0.0,
+    "token_efficiency_percentage": 100.0,
+    "tokens_per_qualified_lead": 0.0,
+    "category_breakdown": {},
+    "model_breakdown": {}
+  }
+}
