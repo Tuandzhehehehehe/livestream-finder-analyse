@@ -12,7 +12,7 @@ import re
 from typing import Dict, Any
 
 DEFAULT_POSITIVE = {"webinar", "conference", "summit", "networking", "startup", "founder", "ceo", "business", "saas", "investor"}
-DEFAULT_NEGATIVE = {"gaming", "minecraft", "music", "song", "karaoke", "anime", "movie", "football", "valorant", "roblox", "pubg"}
+DEFAULT_NEGATIVE = {"free robux", "robux generator", "free adopt me", "crypto pump", "free vbucks"}
 STOP_WORDS = {"livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng", "ở", "về", "cho", "và", "and", "with", "the", "a", "an", "or", "in", "on", "at", "to", "by", "of", "for", "is", "are"}
 
 
@@ -22,7 +22,7 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     description = str(event.get('description', '')).lower()
     text = f"{title} {description}"
 
-    # 🛑 1. Active Learning Spam Classifier
+    # 🛑 1. Active Learning Spam Classifier (Chỉ loại bỏ khi xác suất spam >= 85%)
     try:
         from ai.spam_classifier import predict_spam
         is_spam, spam_prob = predict_spam(
@@ -30,7 +30,7 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
             description=event.get("description", "")
         )
         event["spam_probability"] = spam_prob
-        if is_spam:
+        if is_spam and spam_prob >= 0.85:
             event["is_spam_detected"] = True
             return 0
     except Exception as e:
