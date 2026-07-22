@@ -1533,3 +1533,7 @@
 {"timestamp": 1784736190.8215477, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 357, "candidate_tokens": 93, "total_tokens": 450}
 {"timestamp": 1784736351.18405, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 83, "candidate_tokens": 112, "total_tokens": 195}
 {"timestamp": 1784736352.1972938, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 357, "candidate_tokens": 85, "total_tokens": 442}
+{"timestamp": 1784737172.1331832, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 87, "candidate_tokens": 75, "total_tokens": 162, "category": "classify"}
+{"timestamp": 1784737173.1109853, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 357, "candidate_tokens": 100, "total_tokens": 457, "category": "comment"}
+{"timestamp": 1784737174.1370373, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 91, "candidate_tokens": 92, "total_tokens": 183, "category": "classify"}
+{"timestamp": 1784737175.0856624, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 362, "candidate_tokens": 99, "total_tokens": 461, "category": "comment"}
