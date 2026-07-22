@@ -68,21 +68,27 @@ def classify_event(title: str, description: str, goal: str = "") -> dict:
 
     desc_snippet = description[:500] + "..." if description and len(description) > 500 else (description or "")
 
-    prompt = f"""Analyze this livestream.
+    prompt = f"""Analyze this livestream event for relevance to a target goal.
+Goal: {goal if goal else "General business & networking"}
 Title: {title}
 Description: {desc_snippet}
 
 Return ONLY valid JSON:
-{{"industry":"", "language":"", "buyer_persona":"", "score":0, "reason":"", "suggested_comment":""}}"""
+{{"industry":"", "language":"", "buyer_persona":"", "score":0, "reason":"", "suggested_comment":""}}
+Note: "score" MUST be an integer from 0 to 100 representing relevance to the Goal (e.g. 85 for highly relevant, 20 for irrelevant)."""
 
     try:
         response = generate(prompt, category="classify")
         text = extract_json(response.text)
         result = json.loads(text)
 
-        if "priority" not in result:
-            score_val = result.get("score", 0)
-            result["priority"] = "High" if score_val >= 80 else ("Medium" if score_val >= 50 else "Low")
+        score_val = int(result.get("score", 0))
+        # Nâng thang điểm 1-10 lên 10-100 nếu LLM trả về thang 1-10
+        if 0 < score_val <= 10:
+            score_val = score_val * 10
+            result["score"] = score_val
+
+        result["priority"] = "High" if score_val >= 80 else ("Medium" if score_val >= 50 else "Low")
         if "interaction_tip" not in result:
             result["interaction_tip"] = "Join with a relevant question or comment."
 

@@ -268,7 +268,14 @@ def render_search_tab():
                 status_ph.info(f"⏳ Đang xử lý {index + 1}/{total}")
                 if enable_ai and event.get("_match_score", 0) >= 15:
                     try:
-                        event.update(classify_event(event.get("title", ""), event.get("description", ""), goal))
+                        orig_match = event.get("_match_score", event.get("score", 0))
+                        classification = classify_event(event.get("title", ""), event.get("description", ""), goal)
+                        event.update(classification)
+                        # Bảo lưu điểm tối đa từ Relevance Engine (MiniLM / Cross-Encoder / Keyword)
+                        final_s = max(orig_match, int(event.get("score", 0)))
+                        event["score"] = final_s
+                        event["priority"] = "High" if final_s >= 80 else ("Medium" if final_s >= 50 else "Low")
+
                         from ai.comments import generate_comments
                         comments = generate_comments(event.get("title", ""), event.get("description", ""), goal)
                         if comments:
