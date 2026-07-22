@@ -1529,3 +1529,7 @@
 {"timestamp": 1784651674.8151472, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 393, "candidate_tokens": 109, "total_tokens": 502}
 {"timestamp": 1784651677.9223373, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 119, "candidate_tokens": 128, "total_tokens": 247}
 {"timestamp": 1784651681.077556, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 393, "candidate_tokens": 97, "total_tokens": 490}
+{"timestamp": 1784736189.7224276, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 83, "candidate_tokens": 96, "total_tokens": 179}
+{"timestamp": 1784736190.8215477, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 357, "candidate_tokens": 93, "total_tokens": 450}
+{"timestamp": 1784736351.18405, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 83, "candidate_tokens": 112, "total_tokens": 195}
+{"timestamp": 1784736352.1972938, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 357, "candidate_tokens": 85, "total_tokens": 442}
