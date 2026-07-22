@@ -447,37 +447,20 @@ Actual End: {details.get('actualEndTime')}
                             )
 
                 except Exception as e:
-
-                    print(
-                        f"Error crawling query '{query}': {e}"
-                    )
+                    err_str = str(e)
+                    print(f"Error crawling query '{query}': {e}")
+                    if "quota" in err_str.lower() or "429" in err_str or "rateLimitExceeded" in err_str:
+                        print("[YouTube Crawler] ⚠️ YouTube API hết Quota (429) -> Tự động chuyển sang Playwright Live Scraper cho YouTube...")
+                        return crawl_youtube_live_web(keywords, limit=limit)
 
         except Exception as e:
+            print(f"Error expanding keyword '{keyword}': {e}")
 
-            print(
-                f"Error expanding keyword '{keyword}': {e}"
-            )
+    if not events:
+        print("[YouTube Crawler] ⚠️ Không có kết quả từ API -> Fallback sang Playwright Live Scraper cho YouTube...")
+        return crawl_youtube_live_web(keywords, limit=limit)
 
-    priority = {
-
-        "LIVE": 0,
-
-        "UPCOMING": 1
-    }
-
-    events.sort(
-        key=lambda x: (
-
-            priority.get(
-                x.get("status"),
-                99
-            ),
-
-            x.get(
-                "scheduled_start_time",
-                ""
-            )
-        )
-    )
+    priority = {"LIVE": 0, "UPCOMING": 1}
+    events.sort(key=lambda x: (priority.get(x.get("status"), 99), x.get("scheduled_start_time", "")))
 
     return events
