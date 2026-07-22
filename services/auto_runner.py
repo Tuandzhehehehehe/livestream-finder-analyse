@@ -49,8 +49,8 @@ def _import_project():
     from services.ai_crawl_tool import crawl_livestreams_with_ai
     from ai.classify import classify_event
     from ai.comments import generate_comments
-    from database.livestream_repository import save_event, get_event_by_url
-    return list_profiles, crawl_livestreams_with_ai, classify_event, generate_comments, save_event, get_event_by_url
+    from database.livestream_repository import save_event
+    return list_profiles, crawl_livestreams_with_ai, classify_event, generate_comments, save_event
 
 
 # ── Core: chạy 1 lần ────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ def run_once(
     Returns:
         dict: tóm tắt kết quả {total_new, total_skipped, profiles_run, errors}
     """
-    list_profiles, crawl_livestreams_with_ai, classify_event, generate_comments, save_event, get_event_by_url = _import_project()
+    list_profiles, crawl_livestreams_with_ai, classify_event, generate_comments, save_event = _import_project()
 
     profiles = list_profiles()
     if not profiles:
@@ -109,12 +109,6 @@ def run_once(
             for event in events:
                 url = event.get("url", "")
                 if not url:
-                    continue
-
-                # Bỏ qua nếu đã lưu (kiểm tra khi save, không block search)
-                existing = get_event_by_url(url)
-                if existing:
-                    skipped_count += 1
                     continue
 
                 # ── Tự động Classify ──────────────────────────────────────

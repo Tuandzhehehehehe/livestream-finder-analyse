@@ -1,114 +1,99 @@
+"""
+crawler/web_search.py — Google Web Search Crawler
+==================================================
+Searches Google for targeted event links (Luma, Eventbrite, Zoom, Meetup, YouTube).
+"""
+
+import re
 import urllib.parse
+from datetime import datetime
+# pyrefly: ignore [missing-import]
 from playwright.sync_api import sync_playwright
 from crawler._browser import launch_context
 
-def crawl_web(keywords, limit=20, **kwargs):
-    """
-    Search Google for related web articles, events, or news
-    using Playwright to bypass basic bot protections.
-    """
+ALLOWED_DOMAINS = [
+    "lu.ma", "eventbrite.com", "zoom.us", "youtube.com",
+    "twitch.tv", "vimeo.com", "meetup.com", "linkedin.com/events"
+]
+
+
+def crawl_web(keywords: list, limit: int = 20, **kwargs) -> list:
     events = []
     seen_urls = set()
-    
+    current_year = datetime.now().year
+
     with sync_playwright() as p:
-        # Use headless=True by default for Google to not disturb the user,
-        # but since we use persistent context, it shouldn't captcha easily.
         context = launch_context(p, "google_search", headless=True)
         page = context.pages[0] if context.pages else context.new_page()
-        
+
         try:
-            for keyword in keywords[:5]: # limit to 5 keywords
+            for keyword in keywords[:5]:
                 if len(events) >= limit:
                     break
-                    
-                # General Web Search query for events across all websites
-                # Use advanced operators and action keywords to filter out blog posts and news
-                # We want actual registration pages or livestreams
-                # Strict livestream platforms query to avoid blog posts entirely
+
                 query = f'"{keyword}" (site:lu.ma OR site:eventbrite.com OR site:zoom.us OR site:youtube.com OR site:twitch.tv OR site:vimeo.com OR site:meetup.com) (livestream OR webinar OR event)'
                 url = f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}"
-                print(f"[Web Crawler] Searching Google for any website: {query}")
-                
+                print(f"[Web Search] Query: {keyword}")
+
                 try:
                     page.goto(url, timeout=30000)
-                    page.wait_for_timeout(3000)
-                    
-                    # Check for captcha or consent wall
+                    page.wait_for_timeout(2000)
+
                     if "sorry/index" in page.url or "consent.google.com" in page.url:
-                        print("[Web Crawler] Google Captcha or Consent page detected.")
-                        
-                    links = page.query_selector_all('h3')
-                    for h3 in links:
+                        print("[Web Search] Captcha/Consent detected")
+
+                    for h3 in page.query_selector_all("h3"):
                         a = h3.evaluate_handle('node => node.closest("a")')
-                        if a:
-                            href = a.get_attribute("href")
-                            if href and href.startswith("http") and not "google.com" in href:
-                                # Ensure it's actually a livestream/event domain
-                                allowed_domains = ["lu.ma", "eventbrite.com", "zoom.us", "youtube.com", "twitch.tv", "vimeo.com", "meetup.com", "linkedin.com/events"]
-                                if not any(d in href for d in allowed_domains):
-                                    continue
-                                
-                                if href in seen_urls:
-                                    continue
-                                seen_urls.add(href)
-                                
-                                title = h3.inner_text().strip()
-                                snippet = "Kết quả tìm kiếm từ Google Web Search."
-                                try:
-                                    container = h3.evaluate_handle('node => { let el = node; while(el && !el.classList.contains("g") && el.tagName !== "BODY") { el = el.parentElement; } return el.tagName !== "BODY" ? el : node.parentElement.parentElement; }')
-                                    if container:
-                                        snippet = container.inner_text().replace('\\n', ' ')
-                                except Exception:
-                                    pass
+                        if not a:
+                            continue
+                        href = a.get_attribute("href") or ""
+                        if not href.startswith("http") or "google.com" in href or href in seen_urls:
+                            continue
 
-                                if title:
-                                    import re as _re
-                                    from datetime import datetime as _dt
-                                    current_year = _dt.now().year
+                        if not any(d in href for d in ALLOWED_DOMAINS):
+                            continue
+                        seen_urls.add(href)
 
-                                    # Tìm năm trong title hoặc snippet
-                                    years_found = [int(y) for y in _re.findall(r'\b(20\d{2})\b', title + ' ' + snippet)]
+                        title = h3.inner_text().strip()
+                        if not title:
+                            continue
 
-                                    text_lower = (title + " " + snippet).lower()
-                                    if any(kw in text_lower for kw in ["live", "livestream", "trực tiếp", "happening now", "watching now", "[live]"]):
-                                        event_status = "LIVE"
-                                    else:
-                                        event_status = "UPCOMING"
+                        snippet = "Google Web Search event result."
+                        try:
+                            container = h3.evaluate_handle('node => { let el = node; while(el && !el.classList.contains("g") && el.tagName !== "BODY") { el = el.parentElement; } return el.tagName !== "BODY" ? el : node.parentElement.parentElement; }')
+                            if container:
+                                snippet = container.inner_text().replace('\n', ' ')
+                        except Exception:
+                            pass
 
-                                    skip = False
-                                    if years_found:
-                                        min_year = min(years_found)
-                                        if min_year < current_year:
-                                            # Năm cũ hơn năm hiện tại → đã qua, bỏ qua
-                                            skip = True
-                                        elif min_year > current_year + 1:
-                                            # Năm quá xa trong tương lai → bỏ qua
-                                            skip = True
+                        years_found = [int(y) for y in re.findall(r'\b(20\d{2})\b', title + ' ' + snippet)]
+                        if years_found and (min(years_found) < current_year or min(years_found) > current_year + 1):
+                            continue
 
-                                    if skip:
-                                        continue
+                        text_lower = (title + " " + snippet).lower()
+                        if any(kw in text_lower for kw in ["live", "livestream", "trực tiếp", "happening now", "watching now", "[live]"]):
+                            event_status = "LIVE"
+                        else:
+                            event_status = "UPCOMING"
 
+                        events.append({
+                            "platform": "Web",
+                            "keyword": keyword,
+                            "title": title,
+                            "url": href,
+                            "start_time": "",
+                            "status": event_status,
+                            "description": snippet,
+                        })
 
-                                    events.append({
-                                        "platform": "Web",
-                                        "keyword": keyword,
-                                        "title": title,
-                                        "url": href,
-                                        "start_time": "",
-                                        "status": event_status,
-                                        "description": snippet
-                                    })
-                                    if len(events) >= limit:
-                                        break
+                        if len(events) >= limit:
+                            break
                 except Exception as e:
-                    print(f"[Web Crawler] Search error for '{query}': {e}")
-                    
-        except Exception as e:
-            print(f"[Web Crawler] Init error: {e}")
+                    print(f"[Web Search] Error for '{keyword}': {e}")
         finally:
             try:
                 context.close()
-            except:
+            except Exception:
                 pass
-                
+
     return events

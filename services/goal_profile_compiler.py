@@ -94,7 +94,7 @@ Example for goal "charity":
 }}
 """
 
-    response = generate(prompt)  # Tự động fallback Gemini → Groq → OpenAI
+    response = generate(prompt, category="goal_compile")  # Tự động fallback Gemini → Groq → OpenAI
     text = extract_json(response.text)
     result = json.loads(text)
 

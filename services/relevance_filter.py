@@ -1,12 +1,28 @@
-def calculate_relevance(event, analysis, goal=""):
+"""
+services/relevance_filter.py — Relevance Scoring Engine
+=========================================================
+Calculates domain-specific relevance scores for scraped event items using:
+- Rule-based keyword matching & spam filtering
+- Active Learning Spam Classifier
+- MiniLM Semantic Similarity Scorer
+- Zero-Shot Cross-Encoder Scorer
+"""
+
+import re
+from typing import Dict, Any
+
+DEFAULT_POSITIVE = {"webinar", "conference", "summit", "networking", "startup", "founder", "ceo", "business", "saas", "investor"}
+DEFAULT_NEGATIVE = {"gaming", "minecraft", "music", "song", "karaoke", "anime", "movie", "football", "valorant", "roblox", "pubg"}
+STOP_WORDS = {"livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng", "ở", "về", "cho", "và", "and", "with", "the", "a", "an", "or", "in", "on", "at", "to", "by", "of", "for", "is", "are"}
+
+
+def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: str = "") -> int:
     title = str(event.get('title', '')).lower()
     url = str(event.get('url', '')).lower()
-    text = (
-        f"{title} "
-        f"{str(event.get('description', '')).lower()}"
-    )
+    description = str(event.get('description', '')).lower()
+    text = f"{title} {description}"
 
-    # 🛑 1. Active Learning Spam Classifier (Solution 1)
+    # 🛑 1. Active Learning Spam Classifier
     try:
         from ai.spam_classifier import predict_spam
         is_spam, spam_prob = predict_spam(
@@ -90,13 +106,8 @@ def calculate_relevance(event, analysis, goal=""):
                     score = max(score, 5)
 
     if goal:
-        import re
         goal_words = re.findall(r'[a-zA-Z0-9]+', goal.lower())
-        stop_words = {
-            "livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng", "ở", "về", "cho", 
-            "và", "and", "with", "the", "a", "an", "or", "in", "on", "at", "to", "by", "of", "for", "is", "are"
-        }
-        core_terms = [w for w in goal_words if w not in stop_words and len(w) > 2]
+        core_terms = [w for w in goal_words if w not in STOP_WORDS and len(w) > 2]
         if len(core_terms) >= 2:
             matched_core_terms = [t for t in core_terms if t in text]
             if len(matched_core_terms) >= 2:
@@ -105,14 +116,14 @@ def calculate_relevance(event, analysis, goal=""):
     if goal and goal.lower() in text:
         score += 5
 
-    positive_words = analysis.get("positive_keywords") or []
+    positive_words = [str(w).lower() for w in (analysis.get("positive_keywords") or DEFAULT_POSITIVE)]
     for word in positive_words:
-        if str(word).lower() in text:
+        if word in text:
             score += 5
 
-    negative_words = analysis.get("negative_keywords") or []
+    negative_words = [str(w).lower() for w in (analysis.get("negative_keywords") or DEFAULT_NEGATIVE)]
     for word in negative_words:
-        if str(word).lower() in text:
+        if word in text:
             score -= 15
 
     # ── MiniLM Semantic Similarity NLP Model ────────────────────────────
@@ -151,20 +162,6 @@ def calculate_relevance(event, analysis, goal=""):
     return score
 
 
-def is_relevant(event, goal, threshold=0):
-
-    text = (
-        f"{event.get('title', '')} "
-        f"{event.get('description', '')}"
-    ).lower()
-
-    score = 0
-
-    for keyword in [goal]:
-
-        keyword = str(keyword).lower().strip()
-
-        if keyword and keyword in text:
-            score += 10
-
-    return score >= threshold
+def is_relevant(event: Dict[str, Any], goal: str, threshold: int = 0) -> bool:
+    text = f"{event.get('title', '')} {event.get('description', '')}".lower()
+    return (10 if goal.lower().strip() in text else 0) >= threshold
