@@ -51,10 +51,9 @@ def search_by_event_type(keyword: str, event_type: str, limit: int = 20) -> dict
 
 
 def get_video_details(video_ids: list) -> dict:
-    if not video_ids:
+    if not video_ids or not youtube:
         return {}
-    client = get_youtube_client()
-    response = client.videos().list(
+    response = youtube.videos().list(
         part="liveStreamingDetails",
         id=",".join(video_ids)
     ).execute()

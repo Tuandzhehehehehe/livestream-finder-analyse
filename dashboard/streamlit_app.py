@@ -198,7 +198,7 @@ def render_benchmark_tab():
                 "Tổng Token": r.get("token_metrics", {}).get("total_tokens_consumed", 0),
                 "Lãng phí (%)": r.get("token_metrics", {}).get("token_waste_percentage", 0),
             } for r in past])
-            st.dataframe(df_past, use_container_width=True)
+            st.dataframe(df_past, width="stretch")
     except Exception as e:
         st.error(f"Lỗi báo cáo: {e}")
 
@@ -330,7 +330,7 @@ def render_search_tab():
         st.write("## KẾT QUẢ")
         df = pd.DataFrame(results)
         cols = [c for c in ["title", "platform", "status", "industry", "buyer_persona", "score", "priority", "url"] if c in df.columns]
-        st.dataframe(df[cols], use_container_width=True)
+        st.dataframe(df[cols], width="stretch")
 
         st.write("## CHI TIẾT")
         icons = {"YouTube": "📺", "Meetup": "🤝", "Eventbrite": "🎟️", "LinkedIn": "💼", "TikTok": "🎵", "X": "🐦"}
