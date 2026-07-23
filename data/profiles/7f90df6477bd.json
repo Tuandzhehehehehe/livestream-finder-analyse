@@ -1,0 +1,62 @@
+{
+  "goal": "Charity",
+  "compiled_at": "2026-07-23T12:02:55",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "non-profit",
+    "charity",
+    "fundraising",
+    "social impact",
+    "philanthropy"
+  ],
+  "personas": [
+    "donor",
+    "volunteer",
+    "charity organizer",
+    "non-profit manager",
+    "philanthropist"
+  ],
+  "topics": [
+    "charity",
+    "nonprofit",
+    "fundraiser",
+    "donation",
+    "giving",
+    "social impact",
+    "philanthropy",
+    "volunteering",
+    "community service",
+    "fundraising event",
+    "charity run",
+    "walkathon"
+  ],
+  "search_queries": [
+    "charity live",
+    "charity livestream",
+    "fundraising live",
+    "nonprofit livestream",
+    "charity stream",
+    "donation live",
+    "social impact event",
+    "charity online",
+    "live charity event",
+    "charity fundraiser",
+    "online charity stream",
+    "charity donation live",
+    "fundraising livestream",
+    "charity run live",
+    "walkathon livestream"
+  ],
+  "positive_keywords": [
+    "charity",
+    "nonprofit",
+    "fundraising",
+    "donation",
+    "volunteer",
+    "philanthropy",
+    "giving",
+    "social impact",
+    "community service"
+  ],
+  "negative_keywords": []
+}
