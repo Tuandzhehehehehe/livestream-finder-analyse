@@ -112,7 +112,11 @@ channel_profiles = Table(
     # [{"title": "...", "started_at": "...", "viewers": 123, "duration_min": 45}, ...]
     Column("activity_history", JSON),
 
-    # ── Meta ──────────────────────────────────────────────────────────────────
+    # ── Scoring ──────────────────────────────────────────────────────────────────
+    Column("cas",              Float),                               # Channel Attraction Score [0–100]
+    Column("cas_computed_at",  DateTime),                            # khi nào CAS được tính lại lần cuối
+
+    # ── Meta ─────────────────────────────────────────────────────────────────────
     Column("channel_created_at", String(64)),                     # when channel was created
     Column("crawled_at",  DateTime, server_default=func.now()),
     Column("updated_at",  DateTime, server_default=func.now(), onupdate=func.now()),
