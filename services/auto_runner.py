@@ -153,6 +153,18 @@ def run_once(
             summary["total_skipped"] += skipped_count
             summary["profiles_run"] += 1
 
+            # ── Tự động crawl channel từ events vừa tìm được ─────────────
+            if events:
+                try:
+                    from services.channel_runner import enqueue_channels_from_events
+                    ch_result = enqueue_channels_from_events(events)
+                    logger.info(
+                        f"  📡 AutoChannel: {ch_result['saved']} kênh mới | "
+                        f"{ch_result['skipped_existing']} đã có"
+                    )
+                except Exception as e:
+                    logger.warning(f"  AutoChannel error: {e}")
+
             # Ghi JSONL log
             _write_log_entry({
                 "goal": goal,
