@@ -296,6 +296,16 @@ def render_search_tab():
 
             status_ph.success(f"✅ Hoàn thành {total} sự kiện")
 
+            # ── Tự động crawl channel từ events vừa tìm được ─────────────────
+            with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
+                ch_sum = enqueue_channels_from_events(results)
+            if ch_sum.get("new_urls", 0) > 0:
+                st.info(
+                    f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
+                    f"**{ch_sum.get('skipped_existing', 0)}** đã có trong DB | "
+                    f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
+                )
+
         st.session_state["search_data"] = {
             "goal": goal,
             "queries": queries,
@@ -323,45 +333,6 @@ def render_search_tab():
         if not results:
             st.warning("Không tìm thấy livestream phù hợp.")
             return
-
-<<<<<<< HEAD
-=======
-        results = []
-        progress = st.progress(0)
-        status_ph = st.empty()
-        total = len(events)
-
-        for index, event in enumerate(events):
-            status_ph.info(f"⏳ Đang xử lý {index + 1}/{total}")
-            if enable_ai and event.get("_match_score", 0) >= 15:
-                try:
-                    event.update(classify_event(event.get("title", ""), event.get("description", ""), goal))
-                    from ai.comments import generate_comments
-                    comments = generate_comments(event.get("title", ""), event.get("description", ""), goal)
-                    if comments:
-                        event["suggested_comment"] = " | ".join(comments)
-                except Exception as e:
-                    st.warning(f"AI Error: {e}")
-
-            save_event(event)
-            results.append(event)
-            progress.progress((index + 1) / total)
-
-        status_ph.success(f"✅ Hoàn thành {total} sự kiện")
-
-        # ── Tự động crawl channel từ events vừa tìm được ─────────────────
-        if results:
-            with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
-                ch_sum = enqueue_channels_from_events(results)
-            if ch_sum["new_urls"] > 0:
-                st.info(
-                    f"📡 AutoChannel: **{ch_sum['saved']}** kênh mới lưu | "
-                    f"**{ch_sum['skipped_existing']}** đã có trong DB | "
-                    f"**{ch_sum['skipped_crawl']}** bỏ qua"
-                )
-
->>>>>>> Duy
-        # OSINT Google Dorking Links
         st.write("---")
         st.write("## 🌍 Google Dorking (OSINT)")
         q1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{s_goal}"')
