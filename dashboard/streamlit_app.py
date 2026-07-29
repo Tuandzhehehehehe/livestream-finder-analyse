@@ -229,6 +229,7 @@ def render_search_tab():
             enable_cache = st.checkbox("Enable per-platform cache", value=True)
             cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
             use_headless = st.checkbox("Use headless browser for X/TikTok/LinkedIn", value=False)
+            use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Tắt sẽ dùng Playwright Scraper)", value=True)
             force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
             limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
 
@@ -255,9 +256,10 @@ def render_search_tab():
                     goal, limit, platforms=selected_platforms, mode=mode,
                     per_platform_timeout=20, cache=bool(enable_cache), cache_ttl=int(cache_ttl),
                     use_headless=bool(use_headless), force_recompile=bool(force_recompile),
+                    use_youtube_api=bool(use_youtube_api),
                 )
             else:
-                agent_result = search_livestreams(goal, limit, use_headless=bool(use_headless))
+                agent_result = search_livestreams(goal, limit, use_headless=bool(use_headless), use_youtube_api=bool(use_youtube_api))
 
         queries = agent_result.get("queries", [])
         events = agent_result.get("events", [])

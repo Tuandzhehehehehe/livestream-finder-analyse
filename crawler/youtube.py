@@ -5,6 +5,7 @@ Searches YouTube API for live, upcoming, and completed event streams.
 """
 
 import os
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
@@ -198,7 +199,15 @@ def crawl_youtube_live_web(keywords, limit=20):
     return events
 
 
-def crawl_youtube_live(keywords: list, limit: int = 20) -> list:
+def crawl_youtube_live(keywords: list, limit: int = 20, use_api: Optional[bool] = None) -> list:
+    if use_api is None:
+        env_val = os.getenv("ENABLE_YOUTUBE_API", "true").lower()
+        use_api = env_val not in ("false", "0", "no", "off")
+
+    if not use_api:
+        print("[YouTube Crawler] Chế độ YouTube API đang TẮT -> Dùng Playwright Live Scraper cho YouTube...")
+        return crawl_youtube_live_web(keywords, limit=limit)
+
     if not youtube:
         print("[YouTube Crawler] YOUTUBE_API_KEY chưa có - tự động dùng Playwright Live Scraper cho YouTube...")
         return crawl_youtube_live_web(keywords, limit=limit)

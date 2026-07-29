@@ -14,6 +14,7 @@ def search_livestreams(
     use_headless: bool = False,
     platforms: Optional[List[str]] = None,
     platform_limits: Optional[Dict[str, int]] = None,
+    use_youtube_api: bool = True,
 ) -> Dict[str, Any]:
     """
     Backward-compatible wrapper around crawl_livestreams_with_ai.
@@ -25,6 +26,7 @@ def search_livestreams(
         mode="fallback_only",
         use_headless=use_headless,
         cache=True,
+        use_youtube_api=use_youtube_api,
     )
     return {
         "queries": res.get("queries", [goal]),

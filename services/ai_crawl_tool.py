@@ -322,7 +322,8 @@ def crawl_livestreams_with_ai(
         try:
             # build cache key from platform + queries
             qhash = hashlib.sha256(json.dumps(queries, sort_keys=True).encode()).hexdigest()
-            cache_key = f"{platform_name}:{qhash}:{limit}"
+            use_yt_api = kwargs.get("use_youtube_api", True)
+            cache_key = f"{platform_name}:{qhash}:{limit}:ytapi={use_yt_api}"
 
             if cache_enabled:
                 cached = get_cache(cache_key)
@@ -340,6 +341,9 @@ def crawl_livestreams_with_ai(
                 crawler_opts["use_headless"] = kwargs.get("use_headless", True)
             else:
                 crawler_opts["use_headless"] = kwargs.get("use_headless", False)
+
+            if platform_name == "youtube":
+                crawler_opts["use_api"] = use_yt_api
 
             # Chọn bộ từ khóa phù hợp theo loại nền tảng
             active_queries = base_queries if platform_name in EVENT_ONLY_PLATFORMS else queries
