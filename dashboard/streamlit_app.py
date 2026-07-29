@@ -14,8 +14,14 @@ if hasattr(sys.stdout, "reconfigure"):
 import inspect
 import json
 import os
+import sys
 import time
 import urllib.parse
+
+# Đảm bảo project root nằm trong sys.path (Streamlit có thể chạy từ thư mục khác)
+_PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 import pandas as pd
 # pyrefly: ignore [missing-import]
 import streamlit as st
@@ -26,6 +32,7 @@ from database.livestream_repository import save_event
 from services.ai_crawl_tool import crawl_livestreams_with_ai
 from services.goal_profile_compiler import delete_profile, load_profile, list_profiles
 from services.search_agent import search_livestreams
+from services.channel_runner import enqueue_channels_from_events, refresh_channel_scores, run_channel_pipeline
 
 try:
     from crawler.eventbrite import crawl_eventbrite
@@ -317,6 +324,43 @@ def render_search_tab():
             st.warning("Không tìm thấy livestream phù hợp.")
             return
 
+<<<<<<< HEAD
+=======
+        results = []
+        progress = st.progress(0)
+        status_ph = st.empty()
+        total = len(events)
+
+        for index, event in enumerate(events):
+            status_ph.info(f"⏳ Đang xử lý {index + 1}/{total}")
+            if enable_ai and event.get("_match_score", 0) >= 15:
+                try:
+                    event.update(classify_event(event.get("title", ""), event.get("description", ""), goal))
+                    from ai.comments import generate_comments
+                    comments = generate_comments(event.get("title", ""), event.get("description", ""), goal)
+                    if comments:
+                        event["suggested_comment"] = " | ".join(comments)
+                except Exception as e:
+                    st.warning(f"AI Error: {e}")
+
+            save_event(event)
+            results.append(event)
+            progress.progress((index + 1) / total)
+
+        status_ph.success(f"✅ Hoàn thành {total} sự kiện")
+
+        # ── Tự động crawl channel từ events vừa tìm được ─────────────────
+        if results:
+            with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
+                ch_sum = enqueue_channels_from_events(results)
+            if ch_sum["new_urls"] > 0:
+                st.info(
+                    f"📡 AutoChannel: **{ch_sum['saved']}** kênh mới lưu | "
+                    f"**{ch_sum['skipped_existing']}** đã có trong DB | "
+                    f"**{ch_sum['skipped_crawl']}** bỏ qua"
+                )
+
+>>>>>>> Duy
         # OSINT Google Dorking Links
         st.write("---")
         st.write("## 🌍 Google Dorking (OSINT)")
@@ -453,19 +497,121 @@ def render_ai_status_tab():
         st.info("Chưa có file log token (`data/token_usage.log`). Hãy thực hiện lượt tìm kiếm AI đầu tiên!")
 
 
+# ── Channel Tab ───────────────────────────────────────────────────────────
+def render_channel_tab():
+    st.header("📡 Channel Intelligence")
+    st.caption(
+        "Kênh được tự động thu thập sau mỗi lần tìm kiếm livestream. "
+        "Chọn khu vực để xem bảng xếp hạng và đề xuất kênh nổi bật."
+    )
+
+    from channel_crawler.region_mapper import list_supported_regions
+    REGIONS = list_supported_regions()
+
+    # ── Làm mới điểm số ────────────────────────────────────────────────
+    _, c_ref = st.columns([4, 1])
+    with c_ref:
+        if st.button("🔄 Làm mới CAS", key="ch_refresh_btn", use_container_width=True):
+            with st.spinner("Đang tính lại CAS + growth..."):
+                r = refresh_channel_scores()
+            st.success(f"CAS: {r['cas_updated']} kênh | Growth: {r['growth_updated']} kênh")
+
+    st.write("---")
+
+    # ── Chọn khu vực & chạy pipeline ──────────────────────────────────────
+    col1, col2, col3 = st.columns([2, 1, 1])
+    target_region = col1.selectbox(
+        "🌏 Khu vực",
+        REGIONS,
+        index=REGIONS.index("VN") if "VN" in REGIONS else 0,
+        key="ch_region",
+    )
+    ch_platform = col2.selectbox(
+        "Platform", ["(tất cả)", "youtube", "tiktok", "x", "linkedin", "meetup"],
+        key="ch_filter_platform",
+    )
+    top_k = col3.number_input("Top K đề xuất", min_value=3, max_value=50, value=10, key="ch_topk")
+
+    min_cas = st.slider("CAS tối thiểu", 0, 100, 20, key="ch_mincas")
+
+    if st.button("📊 Xem kênh nổi bật", type="primary", key="ch_run_btn", use_container_width=True):
+        platform_filter = None if ch_platform == "(tất cả)" else ch_platform
+        with st.spinner(f"Đang phân tích khu vực {target_region}..."):
+            report = run_channel_pipeline(
+                target_region,
+                platform=platform_filter,
+                refresh_scores=False,  # user tự bấm refresh nếu muốn
+                top_k_rank=50,
+                top_k_recommend=int(top_k),
+                min_cas=float(min_cas),
+            )
+        st.session_state["ch_report"] = report
+
+    report = st.session_state.get("ch_report")
+    if not report:
+        return
+
+    ranking = report.get("ranking", [])
+    recs    = report.get("recommendations", [])
+    region  = report.get("region", "?")
+
+    # ── Bảng xếp hạng ─────────────────────────────────────────────────────
+    st.write(f"### 🏆 Xếp hạng kênh — {region} ({len(ranking)} kênh)")
+    if ranking:
+        df_rank = pd.DataFrame([{
+            "Tier":     ch.get("tier", "?"),
+            "Tên kênh": ch.get("channel_name") or ch.get("username") or ch.get("channel_url", "?"),
+            "Platform": ch.get("platform", "?").upper(),
+            "Follower": ch.get("follower_count") or 0,
+            "CAS":      round(ch.get("cas", 0), 1),
+            "RCAS":     round(ch.get("rcas", 0), 1),
+            "Region":   ch.get("region_tag") or ch.get("country") or "–",
+            "URL":      ch.get("channel_url", ""),
+        } for ch in ranking])
+        st.dataframe(
+            df_rank[["Tier", "Tên kênh", "Platform", "Follower", "CAS", "RCAS", "Region"]],
+            use_container_width=True,
+            height=min(400, 36 + 35 * len(df_rank)),
+        )
+    else:
+        st.info("Chưa có kênh nào trong khu vực này. Hãy crawl thêm dữ liệu.")
+
+    # ── Đề xuất nổi bật ───────────────────────────────────────────────────
+    st.write(f"### ⭐ Đề xuất nổi bật — Top {len(recs)}")
+    if recs:
+        cols_per_row = 2
+        for row_start in range(0, len(recs), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for col_idx, ch in enumerate(recs[row_start: row_start + cols_per_row]):
+                with cols[col_idx]:
+                    name = ch.get("channel_name") or ch.get("username") or "?"
+                    url  = ch.get("channel_url", "#")
+                    st.markdown(
+                        f"**[{name}]({url})**  "
+                        f"\n`{ch.get('platform','?').upper()}` · {ch.get('region_tag') or ch.get('country','?')}  "
+                        f"\n{ch.get('tier','?')} · CAS **{ch.get('cas',0):.1f}** · RCAS **{ch.get('rcas',0):.1f}**  "
+                        f"\nFollower: {ch.get('follower_count',0):,}"
+                    )
+    else:
+        st.info("Không có đề xuất nào với ngưỡng CAS hiện tại. Thử giảm CAS tối thiểu.")
+
+
 # ── Main Entrypoint ───────────────────────────────────────────────────────
 def main():
     render_sidebar()
     st.title("🎯 AI Multi-Platform Livestream Finder")
     st.caption("Tìm livestream, webinar, workshop, networking event bằng AI")
 
-    tab_search, tab_benchmark, tab_ai = st.tabs([
-        "🔍 Tìm kiếm Livestream", 
-        "⚡ Benchmark & Token Waste", 
-        "🤖 Trạng thái AI & Token Tracker"
+    tab_search, tab_channel, tab_benchmark, tab_ai = st.tabs([
+        "🔍 Tìm kiếm Livestream",
+        "📡 Kênh nổi bật",
+        "⚡ Benchmark & Token Waste",
+        "🤖 Trạng thái AI & Token Tracker",
     ])
     with tab_search:
         render_search_tab()
+    with tab_channel:
+        render_channel_tab()
     with tab_benchmark:
         render_benchmark_tab()
     with tab_ai:

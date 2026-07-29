@@ -10,10 +10,15 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+# pyrefly: ignore [missing-import]
 from sqlalchemy import select, update, delete, func as sqlfunc
+# pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from database.db import channel_engine as engine, channel_profiles, follower_snapshots
+from services.attraction_score import (
+    compute_cas, rank_channels_by_region, recommend_channels,
+)
 
 
 # ── Write operations ──────────────────────────────────────────────────────────
@@ -56,6 +61,8 @@ def upsert_channel(data: dict) -> bool:
         "seller_info":           data.get("seller_info"),
         "activity_history":      data.get("activity_history"),
         "channel_created_at":    data.get("channel_created_at"),
+        "cas":                   data.get("cas"),
+        "cas_computed_at":       data.get("cas_computed_at"),
     }
 
     try:
@@ -239,6 +246,109 @@ def compute_growth_trend(channel_url: str) -> dict:
     result["growth_7d_pct"]  = _pct(_nearest_snapshot_before(7))
     result["growth_30d_pct"] = _pct(_nearest_snapshot_before(30))
     return result
+
+
+# ── CAS Scoring ─────────────────────────────────────────────────────────────────────
+
+def update_channel_cas(channel_url: str) -> Optional[float]:
+    """
+    Tính lại CAS cho một kênh và ghi vào DB.
+
+    Returns:
+        float CAS mới, hoặc None nếu kênh không tồn tại.
+    """
+    ch = get_channel_by_url(channel_url)
+    if not ch:
+        return None
+    cas = compute_cas(ch)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                update(channel_profiles)
+                .where(channel_profiles.c.channel_url == channel_url)
+                .values(cas=cas, cas_computed_at=datetime.now(timezone.utc))
+            )
+        return cas
+    except Exception as e:
+        print(f"[ChannelRepo] update_channel_cas error ({channel_url}): {e}")
+        return None
+
+
+def refresh_all_cas() -> int:
+    """
+    Tính lại CAS cho tất cả kênh và ghi vào DB.
+
+    Returns:
+        Số kênh đã cập nhật.
+    """
+    updated = 0
+    for ch in get_all_channels():
+        cas = compute_cas(ch)
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    update(channel_profiles)
+                    .where(channel_profiles.c.channel_url == ch["channel_url"])
+                    .values(cas=cas, cas_computed_at=datetime.now(timezone.utc))
+                )
+            updated += 1
+        except Exception as e:
+            print(f"[ChannelRepo] refresh_all_cas error ({ch['channel_url']}): {e}")
+    return updated
+
+
+# ── Regional Ranking & Recommendation ─────────────────────────────────────────────
+
+def rank_channels_in_region(
+    target_region: str,
+    platform: Optional[str] = None,
+    min_cas: float = 0.0,
+) -> list[dict]:
+    """
+    Xếp hạng kênh nổi bật trong một khu vực theo RCAS.
+
+    Lấy kênh trong khu vực (prefix match region_tag), rồi xếp theo RCAS.
+
+    Args:
+        target_region: region_tag cần xếp hạng (VD: "VN-HCM", "VN", "TH-BKK")
+        platform:      lọc theo platform nếu cần
+        min_cas:       bỏ qua kênh có CAS dưới ngưỡng
+
+    Returns:
+        list[dict] với trường "cas" và "rcas" đã được thêm, sắp xếp giảm dần theo rcas.
+    """
+    channels = get_channels_by_region(target_region, platform=platform)
+    return rank_channels_by_region(channels, target_region, min_cas=min_cas)
+
+
+def recommend_channels_by_region(
+    target_region: str,
+    platform: Optional[str] = None,
+    top_k: int = 10,
+    min_cas: float = 20.0,
+    min_rcas: float = 10.0,
+) -> list[dict]:
+    """
+    Đề xuất kênh nổi bật cho một khu vực — không filter region cứng.
+
+    Lấy toàn bộ kênh (kể cả global), tính RCAS cho từng kênh và trả top K.
+    Kênh global CAS cao vẫn có thể được đề xuất nếu phù hợp (VD: kênh EN cho "SG").
+
+    Args:
+        target_region: region_tag mục tiêu (VD: "VN-HCM", "SG")
+        platform:      lọc theo platform nếu cần
+        top_k:         số lượng kênh đề xuất
+        min_cas:       chỉ xem xét kênh có CAS >= min_cas
+        min_rcas:      chỉ đề xuất kênh có RCAS >= min_rcas
+
+    Returns:
+        list[dict] top K kênh với trường "cas", "rcas", "tier".
+    """
+    channels = get_all_channels(platform=platform)
+    return recommend_channels(
+        channels, target_region,
+        top_k=top_k, min_cas=min_cas, min_rcas=min_rcas,
+    )
 
 
 def refresh_growth_trends() -> int:
