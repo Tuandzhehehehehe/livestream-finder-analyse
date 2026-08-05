@@ -9,6 +9,7 @@ Cách hoạt động:
 - Lần 2+: đọc trực tiếp từ file JSON, không tốn token
 """
 
+from __future__ import annotations
 import os
 import json
 import hashlib

@@ -1,5 +1,9 @@
 __pycache__/
 *.pyc
 .venv/
+.venv_mac/
 .env
 data/browser_profile/
+._*
+.DS_Store
+

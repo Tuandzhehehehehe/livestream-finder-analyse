@@ -23,3 +23,19 @@
 2026-07-20 22:49:51,671 [INFO]   ✅ Goal 'Tokenization livestream': 19 mới, 1 bỏ qua
 
 2026-07-20 22:49:51,671 [INFO] 🏁 Hoàn tất: 19 event mới, 1 bỏ qua, 0 lỗi
+2026-08-05 23:23:34,904 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-05 23:24:28,849 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-05 23:24:28,888 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] 5/08/26 | Druid Tests Seasonal: Bad Tarkov Raids f
+2026-08-05 23:24:28,918 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] 🔴Rech On | Back to Grove Street! – GTA San Andreas
+2026-08-05 23:24:28,932 [INFO]   📡 AutoChannel: 0 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 2, "skipped": 0, "total_found": 2, "status": "ok", "timestamp": "2026-08-05T16:24:28.932628+00:00"}
+2026-08-05 23:24:28,935 [INFO]   ✅ Goal 'Charity': 2 mới, 0 bỏ qua
+
+2026-08-05 23:24:28,935 [INFO] 🏁 Hoàn tất: 2 event mới, 0 bỏ qua, 0 lỗi
+2026-08-05 23:25:31,732 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-05 23:26:37,925 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-05 23:26:58,065 [INFO]   📡 AutoChannel: 0 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 0, "skipped": 2, "total_found": 2, "status": "ok", "timestamp": "2026-08-05T16:26:58.065986+00:00"}
+2026-08-05 23:26:58,067 [INFO]   ✅ Goal 'Charity': 0 mới, 2 bỏ qua
+
+2026-08-05 23:26:58,067 [INFO] 🏁 Hoàn tất: 0 event mới, 2 bỏ qua, 0 lỗi
