@@ -38,10 +38,6 @@ if not logger.handlers:
 _CRAWLERS: dict[str, str] = {
     "youtube":    "channel_crawler.youtube_channel.crawl_youtube_channels_bulk",
     "tiktok":     "channel_crawler.tiktok_channel.crawl_tiktok_channels_bulk",
-    "x":          "channel_crawler.x_channel.crawl_x_channels_bulk",
-    "linkedin":   "channel_crawler.linkedin_channel.crawl_linkedin_channels_bulk",
-    "meetup":     "channel_crawler.meetup_channel.crawl_meetup_channels_bulk",
-    "eventbrite": "channel_crawler.eventbrite_channel.crawl_eventbrite_channels_bulk",
 }
 
 
@@ -104,12 +100,6 @@ def _infer_channel_url(event_url: str, platform: str) -> str:
 
     if platform == "tiktok" and path_parts and path_parts[0].startswith("@"):
         return f"https://tiktok.com/{path_parts[0]}"
-
-    if platform == "x" and path_parts:
-        return f"https://x.com/{path_parts[0]}"
-
-    if platform == "linkedin" and ("/in/" in p.path or "/company/" in p.path):
-        return f"https://linkedin.com/{'/'.join(path_parts[:2])}"
 
     return ""
 

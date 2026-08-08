@@ -19,7 +19,7 @@ from openpyxl import Workbook
 
 EXCEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "data", "livestreams.xlsx"))
 
-headers = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
+headers = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'TikTok', 'Web']
 
 # Create clean Excel file
 os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)

@@ -34,11 +34,6 @@ from services.goal_profile_compiler import delete_profile, load_profile, list_pr
 from services.search_agent import search_livestreams
 from services.channel_runner import enqueue_channels_from_events, refresh_channel_scores, run_channel_pipeline
 
-try:
-    from crawler.eventbrite import crawl_eventbrite
-except Exception:
-    crawl_eventbrite = None
-
 st.set_page_config(page_title="AI Livestream Finder", layout="wide")
 
 
@@ -46,21 +41,11 @@ st.set_page_config(page_title="AI Livestream Finder", layout="wide")
 def render_sidebar():
     with st.sidebar:
         st.write("## 🔑 Quản lý Đăng nhập")
-        st.caption("Đăng nhập tài khoản X, TikTok hoặc LinkedIn và đóng cửa sổ khi hoàn tất.")
+        st.caption("Đăng nhập tài khoản TikTok và đóng cửa sổ khi hoàn tất.")
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("X (Twitter)", use_container_width=True):
-                ok, msg = login_interactive_gui("x")
-                st.success(msg) if ok else st.error(msg)
-        with c2:
-            if st.button("TikTok", use_container_width=True):
-                ok, msg = login_interactive_gui("tiktok")
-                st.success(msg) if ok else st.error(msg)
-        with c3:
-            if st.button("LinkedIn", use_container_width=True):
-                ok, msg = login_interactive_gui("linkedin")
-                st.success(msg) if ok else st.error(msg)
+        if st.button("TikTok", use_container_width=True):
+            ok, msg = login_interactive_gui("tiktok")
+            st.success(msg) if ok else st.error(msg)
 
         st.write("---")
         st.write("## 📊 Xuất dữ liệu")
@@ -92,8 +77,8 @@ def render_sidebar():
         st.write("---")
         st.write("## ⚙️ Auto-Run")
         ar_interval = st.number_input("Interval (giờ)", min_value=0.5, max_value=72.0, value=24.0, step=0.5, key="ar_interval")
-        ar_platforms_all = ["youtube", "meetup", "linkedin", "web"] + (["eventbrite"] if crawl_eventbrite else [])
-        ar_platforms = st.multiselect("Platforms", ar_platforms_all, default=["meetup", "linkedin"], key="ar_platforms")
+        ar_platforms_all = ["youtube", "tiktok", "web"]
+        ar_platforms = st.multiselect("Platforms", ar_platforms_all, default=["youtube", "tiktok"], key="ar_platforms")
 
         col_a1, col_a2 = st.columns(2)
         ar_classify = col_a1.checkbox("Auto-Classify", value=True, key="ar_classify")
@@ -141,7 +126,7 @@ def render_benchmark_tab():
     bm_goal = c1.text_input("Mục tiêu Benchmark", value="AI in HR", key="bm_goal")
     bm_limit = c2.number_input("Số lượng / platform", min_value=1, max_value=50, value=10, key="bm_limit")
 
-    bm_opts = ["youtube", "meetup", "web", "linkedin", "x", "tiktok"] + (["eventbrite"] if crawl_eventbrite else [])
+    bm_opts = ["youtube", "tiktok", "web"]
     bm_platforms = st.multiselect("Nền tảng benchmark", bm_opts, default=bm_opts, key="bm_platforms")
 
     o1, o2, o3 = st.columns(3)
@@ -223,12 +208,12 @@ def render_search_tab():
             use_ai_crawl = st.checkbox("Sử dụng AI Crawl Tool", value=True)
             ai_mode = st.selectbox("Chế độ AI / Fallback", ["AI then Fallback", "Fallback only"], index=0)
 
-            plat_opts = ["youtube", "meetup", "x", "tiktok", "linkedin", "web"] + (["eventbrite"] if crawl_eventbrite else [])
-            selected_platforms = st.multiselect("Nền tảng", plat_opts, default=["linkedin"] if "linkedin" in plat_opts else plat_opts)
+            plat_opts = ["youtube", "tiktok", "web"]
+            selected_platforms = st.multiselect("Nền tảng", plat_opts, default=["youtube", "tiktok"])
 
             enable_cache = st.checkbox("Enable per-platform cache", value=True)
             cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
-            use_headless = st.checkbox("Use headless browser for X/TikTok/LinkedIn", value=False)
+            use_headless = st.checkbox("Use headless browser for TikTok", value=False)
             use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Tắt sẽ dùng Playwright Scraper)", value=True)
             force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
             limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
@@ -337,10 +322,8 @@ def render_search_tab():
             return
         st.write("---")
         st.write("## 🌍 Google Dorking (OSINT)")
-        q1 = urllib.parse.quote_plus(f'site:linkedin.com/events/ "{s_goal}"')
-        q2 = urllib.parse.quote_plus(f'site:linkedin.com/posts/ "{s_goal}" (livestream OR webinar OR "virtual event")')
-        st.markdown(f"- [Sự kiện LinkedIn](https://www.google.com/search?q={q1})")
-        st.markdown(f"- [Bài đăng Webinar LinkedIn](https://www.google.com/search?q={q2})")
+        q1 = urllib.parse.quote_plus(f'site:youtube.com/watch "{s_goal}"')
+        st.markdown(f"- [Livestream YouTube](https://www.google.com/search?q={q1})")
 
         # Results Table & Expanders
         st.write("---")
@@ -350,7 +333,7 @@ def render_search_tab():
         st.dataframe(df[cols], width="stretch")
 
         st.write("## CHI TIẾT")
-        icons = {"YouTube": "📺", "Meetup": "🤝", "Eventbrite": "🎟️", "LinkedIn": "💼", "TikTok": "🎵", "X": "🐦"}
+        icons = {"YouTube": "📺", "TikTok": "🎵", "Web": "🌐"}
         for event in results:
             icon = icons.get(event.get("platform"), "📌")
             with st.expander(f"{icon} {event.get('title')}"):
@@ -500,7 +483,7 @@ def render_channel_tab():
         key="ch_region",
     )
     ch_platform = col2.selectbox(
-        "Platform", ["(tất cả)", "youtube", "tiktok", "x", "linkedin", "meetup"],
+        "Platform", ["(tất cả)", "youtube", "tiktok"],
         key="ch_filter_platform",
     )
     top_k = col3.number_input("Top K đề xuất", min_value=3, max_value=50, value=10, key="ch_topk")

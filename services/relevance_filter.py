@@ -82,28 +82,7 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     if event_keyword and event_keyword in text:
         score += 10
 
-    PLATFORM_QUERY_TRUST = {"linkedin", "meetup", "eventbrite"}
-    platform = str(event.get("platform", "")).lower().strip()
-    if any(p in platform for p in PLATFORM_QUERY_TRUST):
-        if event_keyword:
-            keyword_is_relevant = False
-            for kw in keywords:
-                if kw and len(kw) > 2 and (
-                    kw in event_keyword
-                    or event_keyword in kw
-                ):
-                    keyword_is_relevant = True
-                    break
-            if keyword_is_relevant:
-                title_text = str(event.get("title", "")).lower()
-                title_has_keyword = any(
-                    kw and len(kw) > 2 and kw in title_text
-                    for kw in keywords
-                )
-                if title_has_keyword:
-                    score = max(score, 15)
-                else:
-                    score = max(score, 5)
+
 
     if goal:
         goal_words = re.findall(r'[a-zA-Z0-9]+', goal.lower())

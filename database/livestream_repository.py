@@ -12,13 +12,13 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from database.db import engine, livestreams
 
 EXCEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
-EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
+EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'TikTok', 'Web']
 
 
 def save_to_excel(event: dict) -> bool:
     """
     Lưu thông tin livestream vào file Excel kèm theo chỉ số đánh giá tiềm năng.
-    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, Meetup, X, TikTok, Eventbrite, LinkedIn
+    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, TikTok, Web
     """
     try:
         os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)
@@ -51,7 +51,7 @@ def save_to_excel(event: dict) -> bool:
 
         url_exists = False
         for row in range(2, ws.max_row + 1):
-            for col in range(10, 16):
+            for col in range(10, 13):
                 cell_val = ws.cell(row=row, column=col).value
                 if cell_val and str(cell_val).strip() == url:
                     url_exists = True
@@ -72,21 +72,15 @@ def save_to_excel(event: dict) -> bool:
         content = event.get("description", "")
         date = event.get("scheduled_start_time") or event.get("start_time") or ""
 
-        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", "", "", "", ""]
+        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", ""]
 
         platform = str(event.get("platform", "")).lower().strip()
         if "youtube" in platform:
             row_data[9] = url
-        elif "meetup" in platform:
-            row_data[10] = url
-        elif "x" in platform or "twitter" in platform:
-            row_data[11] = url
         elif "tiktok" in platform:
-            row_data[12] = url
-        elif "eventbrite" in platform:
-            row_data[13] = url
-        elif "linkedin" in platform:
-            row_data[14] = url
+            row_data[10] = url
+        else:
+            row_data[11] = url
 
         ws.append(row_data)
         wb.save(EXCEL_PATH)

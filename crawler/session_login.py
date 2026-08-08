@@ -17,9 +17,7 @@ from playwright.sync_api import sync_playwright
 from crawler._browser import launch_context
 
 LOGIN_URLS = {
-    "x": "https://x.com/login",
     "tiktok": "https://www.tiktok.com/login",
-    "linkedin": "https://www.linkedin.com/login",
 }
 
 
@@ -89,6 +87,6 @@ def login_interactive_gui(platform: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python -m crawler.session_login <x|tiktok|linkedin>")
+        raise SystemExit("Usage: python -m crawler.session_login tiktok")
 
     login(sys.argv[1])

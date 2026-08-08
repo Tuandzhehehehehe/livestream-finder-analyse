@@ -82,7 +82,7 @@ class BenchmarkRunner:
         use_cache: bool = False,
     ):
         self.goal = goal
-        self.platforms = platforms or ["youtube", "meetup", "web", "linkedin", "x", "tiktok"]
+        self.platforms = platforms or ["youtube", "tiktok", "web"]
         self.limit = limit
         self.use_ai_classify = use_ai_classify
         self.use_ai_comment = use_ai_comment
@@ -98,10 +98,7 @@ class BenchmarkRunner:
         """
         from services.ai_crawl_tool import (
             crawl_youtube_live,
-            crawl_meetup,
-            crawl_x_live,
             crawl_tiktok_live,
-            crawl_linkedin,
             crawl_web,
             deduplicate_events,
             time_filter_events,
@@ -149,19 +146,9 @@ class BenchmarkRunner:
 
         platform_crawlers = {
             "youtube": crawl_youtube_live,
-            "meetup": crawl_meetup,
-            "x": crawl_x_live,
             "tiktok": crawl_tiktok_live,
-            "linkedin": crawl_linkedin,
             "web": crawl_web,
         }
-
-        try:
-            from crawler.eventbrite import crawl_eventbrite
-            if crawl_eventbrite:
-                platform_crawlers["eventbrite"] = crawl_eventbrite
-        except Exception:
-            pass
 
         platform_results = {}
         all_raw_events = []

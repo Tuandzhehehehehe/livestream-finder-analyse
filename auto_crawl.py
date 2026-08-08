@@ -10,8 +10,8 @@ Usage:
   # Run on schedule every 2 hours (default):
   py auto_crawl.py
 
-  # Run every 4 hours, only crawl LinkedIn and Meetup:
-  py auto_crawl.py --interval 4 --platforms linkedin meetup
+  # Run every 4 hours, only crawl YouTube and TikTok:
+  py auto_crawl.py --interval 4 --platforms youtube tiktok
 
   # Disable auto-classify and comments (crawl only, saves tokens):
   py auto_crawl.py --no-classify --no-comment
@@ -57,7 +57,7 @@ def main():
         nargs="*",
         default=None,
         metavar="PLATFORM",
-        help="Platforms to crawl: youtube meetup linkedin web ... (default: all)",
+        help="Platforms to crawl: youtube tiktok web (default: all)",
     )
     parser.add_argument(
         "--limit",
