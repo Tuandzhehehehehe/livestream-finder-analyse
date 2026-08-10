@@ -11,13 +11,14 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, update, delete, func as sqlfunc
+from sqlalchemy import select, update, delete, or_, func as sqlfunc
 # pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from database.db import channel_engine as engine, channel_profiles, follower_snapshots
 from services.attraction_score import (
     compute_cas, rank_channels_by_region, recommend_channels,
+    recommend_channels_diverse, recommend_reason,
 )
 
 
@@ -307,7 +308,9 @@ def rank_channels_in_region(
     """
     Xếp hạng kênh nổi bật trong một khu vực theo RCAS.
 
-    Lấy kênh trong khu vực (prefix match region_tag), rồi xếp theo RCAS.
+    Nguồn kênh (union + dedup):
+      1. Kênh có region_tag LIKE '{target_region}%'
+      2. Kênh có country == target_country nhưng region_tag là NULL/rỗng
 
     Args:
         target_region: region_tag cần xếp hạng (VD: "VN-HCM", "VN", "TH-BKK")
@@ -317,7 +320,35 @@ def rank_channels_in_region(
     Returns:
         list[dict] với trường "cas" và "rcas" đã được thêm, sắp xếp giảm dần theo rcas.
     """
-    channels = get_channels_by_region(target_region, platform=platform)
+    target_country = target_region.split("-")[0].upper()
+
+    # Nguồn 1: kênh có region_tag khớp prefix
+    by_region = get_channels_by_region(target_region, platform=platform)
+    seen_urls = {ch["channel_url"] for ch in by_region}
+
+    # Nguồn 2: kênh có country khớp nhưng region_tag là NULL hoặc rỗng
+    with engine.connect() as conn:
+        stmt = (
+            select(channel_profiles)
+            .where(channel_profiles.c.country == target_country)
+            .where(
+                or_(
+                    channel_profiles.c.region_tag.is_(None),
+                    channel_profiles.c.region_tag == "",
+                )
+            )
+        )
+        if platform:
+            stmt = stmt.where(channel_profiles.c.platform == platform.lower())
+        by_country = [dict(r._mapping) for r in conn.execute(stmt).fetchall()]
+
+    # Merge + dedup theo channel_url
+    channels = list(by_region)
+    for ch in by_country:
+        if ch["channel_url"] not in seen_urls:
+            channels.append(ch)
+            seen_urls.add(ch["channel_url"])
+
     return rank_channels_by_region(channels, target_region, min_cas=min_cas)
 
 
@@ -327,6 +358,7 @@ def recommend_channels_by_region(
     top_k: int = 10,
     min_cas: float = 20.0,
     min_rcas: float = 10.0,
+    diverse: bool = True,
 ) -> list[dict]:
     """
     Đề xuất kênh nổi bật cho một khu vực — không filter region cứng.
@@ -340,15 +372,20 @@ def recommend_channels_by_region(
         top_k:         số lượng kênh đề xuất
         min_cas:       chỉ xem xét kênh có CAS >= min_cas
         min_rcas:      chỉ đề xuất kênh có RCAS >= min_rcas
+        diverse:       bật/tắt platform-capped diversification
 
     Returns:
-        list[dict] top K kênh với trường "cas", "rcas", "tier".
+        list[dict] top K kênh với trường "cas", "rcas", "tier", "reason".
     """
     channels = get_all_channels(platform=platform)
-    return recommend_channels(
+    fn = recommend_channels_diverse if diverse else recommend_channels
+    results = fn(
         channels, target_region,
         top_k=top_k, min_cas=min_cas, min_rcas=min_rcas,
     )
+    for ch in results:
+        ch["reason"] = recommend_reason(ch, target_region)
+    return results
 
 
 def refresh_growth_trends() -> int:
@@ -393,3 +430,38 @@ def delete_channel(channel_url: str) -> bool:
     except Exception as e:
         print(f"[ChannelRepo] delete_channel error: {e}")
         return False
+
+
+def get_channel_summary() -> dict:
+    """
+    Tổng hợp thống kê toàn bộ kênh trong channel_info.db.
+
+    Returns:
+        dict với các key: total_channels, by_platform, avg_cas,
+        top_cas, channels_with_score, latest_crawled_at.
+    """
+    with engine.connect() as conn:
+        total = conn.execute(sqlfunc.count(channel_profiles.c.id)).scalar() or 0
+
+        rows = conn.execute(
+            select(channel_profiles.c.platform, sqlfunc.count(channel_profiles.c.id))
+            .group_by(channel_profiles.c.platform)
+        ).fetchall()
+        by_platform = {(r[0] or "unknown"): r[1] for r in rows}
+
+        avg_cas = conn.execute(sqlfunc.avg(channel_profiles.c.cas)).scalar()
+        top_cas = conn.execute(sqlfunc.max(channel_profiles.c.cas)).scalar()
+        with_score = conn.execute(
+            sqlfunc.count(channel_profiles.c.id)
+            .filter(channel_profiles.c.cas.isnot(None))
+        ).scalar() or 0
+        latest = conn.execute(sqlfunc.max(channel_profiles.c.crawled_at)).scalar()
+
+    return {
+        "total_channels":    total,
+        "by_platform":       by_platform,
+        "avg_cas":           round(float(avg_cas or 0), 1),
+        "top_cas":           round(float(top_cas or 0), 1),
+        "channels_with_score": int(with_score),
+        "latest_crawled_at": str(latest)[:19] if latest else "–",
+    }

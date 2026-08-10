@@ -28,11 +28,13 @@ import streamlit as st
 
 from ai.classify import classify_event
 from crawler.session_login import login_interactive_gui
-from database.livestream_repository import save_event
+from database.channel_repository import get_channel_summary
+from database.livestream_repository import get_summary_stats, save_event
 from services.ai_crawl_tool import crawl_livestreams_with_ai
+from services.auto_runner import read_log_entries
 from services.goal_profile_compiler import delete_profile, load_profile, list_profiles
 from services.search_agent import search_livestreams
-from services.channel_runner import enqueue_channels_from_events, refresh_channel_scores, run_channel_pipeline
+from services.channel_runner import enqueue_channels_from_events, export_ranking, refresh_channel_scores, run_channel_pipeline
 
 st.set_page_config(page_title="AI Livestream Finder", layout="wide")
 
@@ -489,6 +491,7 @@ def render_channel_tab():
     top_k = col3.number_input("Top K đề xuất", min_value=3, max_value=50, value=10, key="ch_topk")
 
     min_cas = st.slider("CAS tối thiểu", 0, 100, 20, key="ch_mincas")
+    diverse = st.checkbox("🔀 Đa dạng hóa platform (mỗi platform tối đa ceil(top_k/2) kênh)", value=True, key="ch_diverse")
 
     if st.button("📊 Xem kênh nổi bật", type="primary", key="ch_run_btn", use_container_width=True):
         platform_filter = None if ch_platform == "(tất cả)" else ch_platform
@@ -500,6 +503,7 @@ def render_channel_tab():
                 top_k_rank=50,
                 top_k_recommend=int(top_k),
                 min_cas=float(min_cas),
+                diverse=diverse,
             )
         st.session_state["ch_report"] = report
 
@@ -511,45 +515,227 @@ def render_channel_tab():
     recs    = report.get("recommendations", [])
     region  = report.get("region", "?")
 
-    # ── Bảng xếp hạng ─────────────────────────────────────────────────────
+    # ── Bảng xếp hạng ─────────────────────────────────────────────────────────
     st.write(f"### 🏆 Xếp hạng kênh — {region} ({len(ranking)} kênh)")
     if ranking:
+        # ── Metrics summary ────────────────────────────────────────────────────
+        rcas_max = max((ch.get("rcas", 0) for ch in ranking), default=0)
+        cas_avg  = sum(ch.get("cas", 0) for ch in ranking) / len(ranking)
+        plat_dist: dict[str, int] = {}
+        for ch in ranking:
+            p = (ch.get("platform") or "?").upper()
+            plat_dist[p] = plat_dist.get(p, 0) + 1
+        plat_str = "  ·  ".join(f"{p} {n}" for p, n in sorted(plat_dist.items()))
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("📋 Tổng kênh",     len(ranking))
+        m2.metric("🥇 RCAS cao nhất",  f"{rcas_max:.1f}")
+        m3.metric("📊 CAS trung bình", f"{cas_avg:.1f}")
+        m4.metric("🌐 Platforms",      plat_str)
+
+        st.write("")
+
+        # ── Build display dataframe ────────────────────────────────────────────
         df_rank = pd.DataFrame([{
+            "#":        i + 1,
             "Tier":     ch.get("tier", "?"),
             "Tên kênh": ch.get("channel_name") or ch.get("username") or ch.get("channel_url", "?"),
-            "Platform": ch.get("platform", "?").upper(),
+            "URL":      ch.get("channel_url", "#"),
+            "Platform": (ch.get("platform") or "?").upper(),
             "Follower": ch.get("follower_count") or 0,
             "CAS":      round(ch.get("cas", 0), 1),
             "RCAS":     round(ch.get("rcas", 0), 1),
-            "Region":   ch.get("region_tag") or ch.get("country") or "–",
-            "URL":      ch.get("channel_url", ""),
-        } for ch in ranking])
+            "Khu vực":  ch.get("region_tag") or ch.get("country") or "–",
+        } for i, ch in enumerate(ranking)])
+
         st.dataframe(
-            df_rank[["Tier", "Tên kênh", "Platform", "Follower", "CAS", "RCAS", "Region"]],
+            df_rank[["#", "Tier", "Tên kênh", "URL", "Platform", "Follower", "CAS", "RCAS", "Khu vực"]],
             use_container_width=True,
-            height=min(400, 36 + 35 * len(df_rank)),
+            height=min(500, 38 + 35 * len(df_rank)),
+            column_config={
+                "#":        st.column_config.NumberColumn("#", width="small"),
+                "Tier":     st.column_config.TextColumn("Tier", width="medium"),
+                "Tên kênh": st.column_config.TextColumn("Tên kênh"),
+                "URL":      st.column_config.LinkColumn("🔗", display_text="Mở", width="small"),
+                "Follower": st.column_config.NumberColumn("Follower", format="%d"),
+                "CAS":      st.column_config.ProgressColumn("CAS",  min_value=0, max_value=100, format="%.1f"),
+                "RCAS":     st.column_config.ProgressColumn("RCAS", min_value=0, max_value=100, format="%.1f"),
+            },
         )
+
+        # ── Bar chart RCAS top 10 ──────────────────────────────────────────────
+        top10 = ranking[:10]
+        if top10:
+            st.write("#### 📊 Top 10 — RCAS & CAS Score")
+            chart_data = pd.DataFrame({
+                "Kênh": [
+                    (ch.get("channel_name") or ch.get("username") or f"#{i+1}")[:25]
+                    for i, ch in enumerate(top10)
+                ],
+                "RCAS": [round(ch.get("rcas", 0), 1) for ch in top10],
+                "CAS":  [round(ch.get("cas", 0), 1)  for ch in top10],
+            }).set_index("Kênh")
+            st.bar_chart(chart_data, color=["#4f8ef7", "#a78bfa"])
+
+        # ── Export buttons ─────────────────────────────────────────────────────
+        st.write("")
+        ec1, ec2, _ = st.columns([1, 1, 4])
+        with ec1:
+            csv_data = export_ranking(ranking, fmt="csv")
+            st.download_button(
+                label="📥 Xuất CSV",
+                data=csv_data.encode("utf-8"),
+                file_name=f"ranking_{region}.csv",
+                mime="text/csv",
+                key="ch_export_csv",
+                use_container_width=True,
+            )
+        with ec2:
+            json_data = export_ranking(ranking, fmt="json")
+            st.download_button(
+                label="📥 Xuất JSON",
+                data=json_data.encode("utf-8"),
+                file_name=f"ranking_{region}.json",
+                mime="application/json",
+                key="ch_export_json",
+                use_container_width=True,
+            )
     else:
         st.info("Chưa có kênh nào trong khu vực này. Hãy crawl thêm dữ liệu.")
 
-    # ── Đề xuất nổi bật ───────────────────────────────────────────────────
+    # ── Đề xuất nổi bật ───────────────────────────────────────────────────────
     st.write(f"### ⭐ Đề xuất nổi bật — Top {len(recs)}")
     if recs:
         cols_per_row = 2
         for row_start in range(0, len(recs), cols_per_row):
             cols = st.columns(cols_per_row)
             for col_idx, ch in enumerate(recs[row_start: row_start + cols_per_row]):
-                with cols[col_idx]:
+                with cols[col_idx], st.container(border=True):
                     name = ch.get("channel_name") or ch.get("username") or "?"
                     url  = ch.get("channel_url", "#")
+                    rcas = ch.get("rcas", 0)
                     st.markdown(
-                        f"**[{name}]({url})**  "
-                        f"\n`{ch.get('platform','?').upper()}` · {ch.get('region_tag') or ch.get('country','?')}  "
-                        f"\n{ch.get('tier','?')} · CAS **{ch.get('cas',0):.1f}** · RCAS **{ch.get('rcas',0):.1f}**  "
-                        f"\nFollower: {ch.get('follower_count',0):,}"
+                        f"**[{name}]({url})**\n\n"
+                        f"`{(ch.get('platform') or '?').upper()}` &nbsp;&nbsp; "
+                        f"{ch.get('tier', '?')} &nbsp;&nbsp; "
+                        f"🌏 {ch.get('region_tag') or ch.get('country') or '?'}"
                     )
+                    st.caption(
+                        f"Follower: {ch.get('follower_count') or 0:,}  ·  "
+                        f"CAS {ch.get('cas', 0):.1f}  ·  RCAS {rcas:.1f}"
+                    )
+                    st.progress(min(int(rcas), 100), text=f"RCAS {rcas:.1f} / 100")
+                    if ch.get("reason"):
+                        with st.expander("💡 Lý do đề xuất"):
+                            for part in ch["reason"].split("  ·  "):
+                                st.markdown(f"- {part.strip()}")
     else:
-        st.info("Không có đề xuất nào với ngưỡng CAS hiện tại. Thử giảm CAS tối thiểu.")
+        st.warning(
+            "⚠️ Không có kênh nào đáp ứng ngưỡng hiện tại.\n\n"
+            f"🔧 **Gợi ý:** Thử giảm **CAS tối thiểu** xuống (hiện đang là {min_cas}) "
+            "hoặc bấm **🔄 Làm mới CAS** rồi chạy lại."
+        )
+
+
+# ── Overview Tab ───────────────────────────────────────────────────────
+
+def render_overview_tab():
+    st.header("📋 Tổng quan hệ thống")
+    st.caption("Số liệu cập nhật sau mỗi lần tìm kiếm hoặc auto-run. Nhấn F5 để lấy số liệu mới nhất.")
+
+    ev  = get_summary_stats()
+    ch  = get_channel_summary()
+    log = read_log_entries(20)
+
+    # ── Section 1: Metrics tổng quan ───────────────────────────────────────
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    m1.metric("📊 Tổng Events",   ev["total_events"])
+    m2.metric("⭐ Score cao nhất",  ev["top_score"])
+    m3.metric("📈 Score TB",        f"{ev['avg_score']:.1f}")
+    m4.metric("📡 Tổng Kênh",     ch["total_channels"])
+    m5.metric("🏆 CAS cao nhất",  f"{ch['top_cas']:.1f}")
+    m6.metric("🔢 Kênh có CAS",    ch["channels_with_score"])
+
+    st.write("")
+
+    # ── Section 2: Livestream breakdown ─────────────────────────────────
+    st.write("### 🌐 Livestream Events")
+    c_left, c_mid, c_right = st.columns([2, 1, 1])
+
+    with c_left:
+        if ev["by_platform"]:
+            df_plat = pd.DataFrame(
+                list(ev["by_platform"].items()),
+                columns=["Platform", "Số lượng"],
+            ).set_index("Platform")
+            st.write("**Phân bố theo Platform**")
+            st.bar_chart(df_plat)
+        else:
+            st.info("Chưa có dữ liệu.")
+
+    with c_mid:
+        st.write("**Priority**")
+        if ev["by_priority"]:
+            _order = {"High": 0, "Medium": 1, "Low": 2}
+            _badge = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}
+            for name, count in sorted(ev["by_priority"].items(), key=lambda x: _order.get(x[0], 9)):
+                st.metric(f"{_badge.get(name, '⚫')} {name}", count)
+        else:
+            st.info("Chưa có dữ liệu.")
+
+    with c_right:
+        st.write("**Trạng thái**")
+        if ev["by_status"]:
+            _badge = {"LIVE": "🔴", "UPCOMING": "🟡", "COMPLETED": "✅"}
+            for name, count in sorted(ev["by_status"].items()):
+                st.metric(f"{_badge.get(name, '⚫')} {name}", count)
+        else:
+            st.info("Chưa có dữ liệu.")
+
+    st.caption(f"⏰ Event mới nhất lúc: {ev['latest_crawled_at']}")
+    st.write("")
+
+    # ── Section 3: Channel Intelligence ────────────────────────────────
+    st.write("### 📡 Channel Intelligence")
+    cc_left, cc_right = st.columns([2, 1])
+
+    with cc_left:
+        if ch["by_platform"]:
+            df_ch = pd.DataFrame(
+                list(ch["by_platform"].items()),
+                columns=["Platform", "Số kênh"],
+            ).set_index("Platform")
+            st.write("**Kênh theo Platform**")
+            st.bar_chart(df_ch)
+        else:
+            st.info("Chưa có kênh nào.")
+
+    with cc_right:
+        st.write("**CAS Stats**")
+        st.metric("🏆 CAS cao nhất", f"{ch['top_cas']:.1f}")
+        st.metric("📈 CAS trung bình", f"{ch['avg_cas']:.1f}")
+        st.metric("🔢 Chưa có CAS", ch["total_channels"] - ch["channels_with_score"])
+
+    st.caption(f"⏰ Kênh mới nhất lúc: {ch['latest_crawled_at']}")
+    st.write("")
+
+    # ── Section 4: Auto-Run History ─────────────────────────────────────
+    st.write("### ⏳ Lịch sử Auto-Run (20 lần gần nhất)")
+    if log:
+        df_log = pd.DataFrame([{
+            "⏰ Thời gian":   (e.get("timestamp") or "")[:19].replace("T", " "),
+            "🎯 Goal":          (e.get("goal") or "")[:60],
+            "➕ Mới":           e.get("new_events", "–"),
+            "⏭ Bỏ qua":        e.get("skipped", "–"),
+            "🔍 Tìm được":      e.get("total_found", "–"),
+            "📊 Status":        "✅ OK" if e.get("status") == "ok" else f"❌ {e.get('error', '')[:40]}",
+        } for e in log])
+        st.dataframe(df_log, use_container_width=True, height=min(500, 38 + 35 * len(df_log)))
+    else:
+        st.info(
+            "💤 Chưa có lịch sử auto-run. "
+            "Bấm **▶️ Chạy thủ công ngay** trong sidebar để bắt đầu."
+        )
 
 
 # ── Main Entrypoint ───────────────────────────────────────────────────────
@@ -558,12 +744,15 @@ def main():
     st.title("🎯 AI Multi-Platform Livestream Finder")
     st.caption("Tìm livestream, webinar, workshop, networking event bằng AI")
 
-    tab_search, tab_channel, tab_benchmark, tab_ai = st.tabs([
+    tab_overview, tab_search, tab_channel, tab_benchmark, tab_ai = st.tabs([
+        "📋 Tổng quan",
         "🔍 Tìm kiếm Livestream",
         "📡 Kênh nổi bật",
         "⚡ Benchmark & Token Waste",
         "🤖 Trạng thái AI & Token Tracker",
     ])
+    with tab_overview:
+        render_overview_tab()
     with tab_search:
         render_search_tab()
     with tab_channel:

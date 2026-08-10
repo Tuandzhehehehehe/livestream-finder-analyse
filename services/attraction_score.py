@@ -4,12 +4,12 @@ services/attraction_score.py — Channel Attraction Score Engine
 Tính điểm hấp dẫn kênh livestream theo 2 tầng:
 
   CAS  (Channel Attraction Score)  — chất lượng tuyệt đối [0–100]
-       Stateless, region-agnostic. Lưu vào DB.
-
   RCAS (Regional CAS)              — mức độ phù hợp với khu vực [0–100]
-       Tính tại query time dựa trên target_region.
 
 Tier: 80+ 🔥 Hot | 60+ ⭐ Promising | 40+ 📈 Growing | 20+ 💤 Passive | <20 ❌ Stale
+
+Weights: audience=0.30 | activity=0.25 | engagement=0.25 | recency=0.15 | commerce=0.05
+Regional relevance: location 0–0.6 | language 0–0.3 | content 0–0.1 | floor=0.1
 """
 
 from __future__ import annotations
@@ -32,20 +32,34 @@ _REGION_LANGUAGES: dict[str, list[str]] = {
 }
 
 _REGION_KEYWORDS: dict[str, list[str]] = {
-    "VN": ["vietnam", "viet nam", "việt", "hà nội", "hanoi", "hcm", "sài gòn", "saigon"],
-    "TH": ["thailand", "thai", "bangkok", "thái lan"],
-    "SG": ["singapore", "sg"],
-    "MY": ["malaysia", "kuala lumpur", "kl"],
-    "ID": ["indonesia", "jakarta", "bali"],
-    "PH": ["philippines", "manila"],
-    "MM": ["myanmar", "yangon"],
-    "KH": ["cambodia", "phnom penh"],
-    "JP": ["japan", "tokyo"],
-    "KR": ["korea", "seoul"],
-    "CN": ["china", "beijing", "shanghai"],
-    "US": ["usa", "united states"],
-    "GB": ["uk", "london"],
-    "AU": ["australia", "sydney"],
+    "VN": ["vietnam", "viet nam", "việt", "hà nội", "hanoi", "hcm", "sài gòn",
+           "saigon", "đà nẵng", "danang", "hải phòng", "cần thơ", "việt nam"],
+    "TH": ["thailand", "thai", "bangkok", "thái lan", "krung thep",
+           "chiang mai", "phuket", "ประเทศไทย", "กรุงเทพ"],
+    "SG": ["singapore", "sg", "singapura"],
+    "MY": ["malaysia", "kuala lumpur", "kl", "penang", "johor", "sabah", "sarawak"],
+    "ID": ["indonesia", "jakarta", "bali", "bandung", "surabaya", "yogyakarta",
+           "medan", "makassar", "indo"],
+    "PH": ["philippines", "manila", "cebu", "davao", "quezon", "pilipinas"],
+    "MM": ["myanmar", "burma", "yangon", "mandalay", "naypyidaw", "မြန်မာ"],
+    "KH": ["cambodia", "phnom penh", "siem reap", "ប្រទេសកម្ពុជា"],
+    "LA": ["laos", "vientiane", "luang prabang", "ລາວ"],
+    "CN": ["china", "beijing", "shanghai", "guangzhou", "shenzhen",
+           "中国", "北京", "上海", "广州", "深圳"],
+    "HK": ["hong kong", "hongkong", "香港"],
+    "TW": ["taiwan", "taipei", "taichung", "kaohsiung", "台灣", "台北"],
+    "JP": ["japan", "tokyo", "osaka", "kyoto", "日本", "東京", "大阪"],
+    "KR": ["korea", "seoul", "busan", "한국", "서울", "부산"],
+    "IN": ["india", "new delhi", "mumbai", "bangalore", "bengaluru",
+           "hyderabad", "chennai", "kolkata", "भारत"],
+    "US": ["usa", "united states", "new york", "los angeles", "san francisco",
+           "chicago", "houston", "miami", "silicon valley"],
+    "GB": ["uk", "united kingdom", "london", "manchester", "birmingham",
+           "england", "scotland", "britain"],
+    "AU": ["australia", "sydney", "melbourne", "brisbane", "perth"],
+    "CA": ["canada", "toronto", "vancouver", "montreal", "calgary"],
+    "DE": ["germany", "berlin", "munich", "hamburg", "deutschland"],
+    "FR": ["france", "paris", "marseille", "lyon"],
 }
 
 
@@ -83,11 +97,9 @@ def _audience(ch: dict) -> float:
     """Quy mô (log scale) + tăng trưởng follower."""
     followers = int(ch.get("follower_count") or 0)
     f = _clamp(math.log10(followers + 1) / math.log10(10_000_000) * 6, 0, 6) if followers else 0.0
-
     g7, g30 = ch.get("growth_7d_pct"), ch.get("growth_30d_pct")
     g = (_clamp(float(g7)  / 5.0,  0, 4) if g7  is not None else
          _clamp(float(g30) / 10.0, 0, 2) if g30 is not None else 0.0)
-
     return _clamp(f + g, 0, 10)
 
 
@@ -101,10 +113,18 @@ def _activity(ch: dict) -> float:
 
 
 def _engagement(ch: dict) -> float:
-    """Viewer-to-Follower Rate. Missing → neutral 3.0 (không phạt lỗi scraping)."""
+    """
+    Viewer-to-Follower Rate. Fallback platform-aware khi avg_viewers=None:
+      youtube+history=3.0 | tiktok=2.0 | web=2.5 | unknown=1.5
+    """
     avg = ch.get("avg_viewers")
     if avg is None:
-        return 3.0
+        platform = (ch.get("platform") or "").lower()
+        has_history = bool(ch.get("total_livestreams") or ch.get("activity_history"))
+        if platform == "youtube" and has_history: return 3.0
+        if platform == "tiktok":  return 2.0
+        if platform == "web":     return 2.5
+        return 1.5
     return _clamp(int(avg) / max(int(ch.get("follower_count") or 1), 1) / 0.02 * 10, 0, 10)
 
 
@@ -132,7 +152,6 @@ def _commerce(ch: dict) -> float:
     )
 
 
-# (fn, weight) — tổng weight = 1.0
 _WEIGHTS = [
     (_audience,   0.30),
     (_activity,   0.25),
@@ -143,61 +162,87 @@ _WEIGHTS = [
 
 
 def compute_cas(channel: dict) -> float:
-    """Tính CAS ∈ [0, 100]. Stateless, có thể tính từ bất kỳ channel dict nào."""
+    """Tính CAS ∈ [0, 100]."""
     return round(_clamp(sum(fn(channel) * w for fn, w in _WEIGHTS) * 10, 0, 100), 2)
 
 
 def cas_breakdown(channel: dict) -> dict:
-    """Chi tiết điểm từng component — dùng để debug / dashboard."""
-    components = {fn.__name__.lstrip("_"): (fn(channel), w) for fn, w in _WEIGHTS}
-    cas = round(_clamp(sum(s * w for s, w in components.values()) * 10, 0, 100), 2)
+    """Chi tiết điểm từng component."""
+    rows = {fn.__name__.lstrip("_"): (fn(channel), w) for fn, w in _WEIGHTS}
+    cas  = round(_clamp(sum(s * w for s, w in rows.values()) * 10, 0, 100), 2)
     return {
         "cas":  cas,
         "tier": cas_tier(cas),
         "components": {
             name: {"score_10": round(s, 3), "weighted": round(s * w, 3)}
-            for name, (s, w) in components.items()
+            for name, (s, w) in rows.items()
         },
     }
+
+
+def cas_explain(channel: dict) -> str:
+    """Human-readable breakdown của CAS — dùng trực tiếp output của cas_breakdown."""
+    bd = cas_breakdown(channel)
+    lines = [f"CAS = {bd['cas']} {bd['tier']}"]
+    for name, data in bd["components"].items():
+        lines.append(f"  • {name:<12} score={data['score_10']:.2f}/10  weighted={data['weighted']:.3f}")
+    return "\n".join(lines)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TẦNG 2 — RCAS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _regional_relevance(channel: dict, target_region: str) -> float:
+def _relevance_scores(channel: dict, target_region: str) -> tuple[float, float, float, list[str]]:
     """
-    Hệ số relevance [0.1, 1.0] = location (0–0.6) + language (0–0.3) + content (0–0.1).
-    Floor 0.1 đảm bảo kênh global CAS cao vẫn xuất hiện trong recommend.
+    Tính (loc, lng, cont, matched_keywords) — shared logic cho cả
+    _regional_relevance() và regional_relevance_breakdown().
     """
     target_country = target_region.split("-")[0].upper()
     region_tag = channel.get("region_tag") or ""
     country    = (channel.get("country") or "").upper()
+    lang       = (channel.get("language") or "").lower()
+    expected   = _REGION_LANGUAGES.get(target_country, ["en"])
+    text       = ((channel.get("description") or "") + " " + (channel.get("channel_name") or "")).lower()
+    keywords   = _REGION_KEYWORDS.get(target_country, [])
+    matched    = [kw for kw in keywords if kw in text]
 
-    # Location
     if region_tag == target_region:
         loc = 0.6
     elif (region_tag.split("-")[0] or country) == target_country:
         loc = 0.4
     elif not region_tag and not country:
-        loc = 0.1   # unknown — không phạt cứng
+        loc = 0.1
     else:
         loc = 0.0
 
-    # Language
-    lang     = (channel.get("language") or "").lower()
-    expected = _REGION_LANGUAGES.get(target_country, ["en"])
     if not lang:          lng = 0.1
     elif lang in expected: lng = 0.3
-    elif lang == "en":    lng = 0.2   # EN partial value
+    elif lang == "en":    lng = 0.2
     else:                 lng = 0.0
 
-    # Content bonus
-    text     = ((channel.get("description") or "") + " " + (channel.get("channel_name") or "")).lower()
-    keywords = _REGION_KEYWORDS.get(target_country, [])
-    cont     = 0.1 if keywords and any(kw in text for kw in keywords) else 0.0
+    cont = 0.1 if matched else 0.0
+    return loc, lng, cont, matched
 
+
+def _regional_relevance(channel: dict, target_region: str) -> float:
+    """Hệ số relevance [0.1, 1.0]."""
+    loc, lng, cont, _ = _relevance_scores(channel, target_region)
     return max(loc + lng + cont, 0.1)
+
+
+def regional_relevance_breakdown(channel: dict, target_region: str) -> dict:
+    """Debug view của regional relevance."""
+    loc, lng, cont, matched = _relevance_scores(channel, target_region)
+    relevance = max(loc + lng + cont, 0.1)
+    return {
+        "relevance":       round(relevance, 3),
+        "location_score":  loc,
+        "language_score":  lng,
+        "content_score":   cont,
+        "matched_keywords": matched,
+        "explanation":     f"loc={loc} + lang={lng} + content={cont} → {relevance:.3f}",
+    }
 
 
 def compute_rcas(cas: float, channel: dict, target_region: str) -> float:
@@ -216,7 +261,6 @@ def _score_and_sort(
     min_rcas: float,
     top_k: Optional[int] = None,
 ) -> list[dict]:
-    """Shared core: tính CAS+RCAS, lọc, sắp xếp, cắt top K."""
     out = []
     for ch in channels:
         cas = float(ch.get("cas") or 0) or compute_cas(ch)
@@ -226,7 +270,10 @@ def _score_and_sort(
         if rcas < min_rcas:
             continue
         out.append({**ch, "cas": cas, "rcas": rcas, "tier": cas_tier(cas)})
-    out.sort(key=lambda x: x["rcas"], reverse=True)
+    out.sort(
+        key=lambda x: (x["rcas"], x["cas"], int(x.get("follower_count") or 0)),
+        reverse=True,
+    )
     return out[:top_k] if top_k else out
 
 
@@ -236,7 +283,7 @@ def rank_channels_by_region(
     *,
     min_cas: float = 0.0,
 ) -> list[dict]:
-    """Xếp hạng kênh (đã pre-filter theo region) theo RCAS."""
+    """Xếp hạng kênh theo RCAS."""
     return _score_and_sort(channels, target_region, min_cas=min_cas, min_rcas=0.0)
 
 
@@ -248,5 +295,77 @@ def recommend_channels(
     min_cas: float = 20.0,
     min_rcas: float = 10.0,
 ) -> list[dict]:
-    """Đề xuất top K kênh phù hợp nhất với khu vực từ toàn bộ danh sách."""
+    """Đề xuất top K kênh phù hợp nhất với khu vực."""
     return _score_and_sort(channels, target_region, min_cas=min_cas, min_rcas=min_rcas, top_k=top_k)
+
+
+def recommend_reason(channel: dict, target_region: str) -> str:
+    """
+    Trả về chuỗi ngắn giải thích tại sao kênh này được đề xuất cho khu vực.
+    Dùng regional_relevance_breakdown() đã có sẵn.
+    """
+    bd = regional_relevance_breakdown(channel, target_region)
+    parts: list[str] = []
+
+    if bd["location_score"] >= 0.6:
+        parts.append(f"📍 Cùng khu vực {target_region}")
+    elif bd["location_score"] >= 0.4:
+        parts.append(f"🌏 Cùng quốc gia {target_region.split('-')[0]}")
+
+    if bd["language_score"] >= 0.3:
+        parts.append(f"🗣️ Ngôn ngữ phù hợp ({(channel.get('language') or '').upper()})")
+    elif bd["language_score"] >= 0.2:
+        parts.append("🗣️ Dùng tiếng Anh (tiếp cận rộng)")
+
+    if bd["matched_keywords"]:
+        parts.append(f"🔑 Từ khóa khớp: {', '.join(bd['matched_keywords'][:3])}")
+
+    tier = channel.get("tier", "")
+    if "🔥" in tier:
+        parts.append("🔥 Kênh đang rất hot")
+    elif "⭐" in tier:
+        parts.append("⭐ Kênh nhiều tiềm năng")
+
+    return "  ·  ".join(parts) if parts else "📊 Điểm RCAS phù hợp với khu vực"
+
+
+def recommend_channels_diverse(
+    channels: list[dict],
+    target_region: str,
+    *,
+    top_k: int = 10,
+    min_cas: float = 20.0,
+    min_rcas: float = 10.0,
+) -> list[dict]:
+    """
+    Đề xuất top K kênh với platform-capped diversification.
+
+    Mỗi platform tối đa ceil(top_k / 2) kênh trong kết quả.
+    Nếu sau khi diversify vẫn chưa đủ top_k → fallback: bổ sung từ
+    các kênh bị loại (relax cap) cho đến khi đủ hoặc hết.
+    """
+    per_platform_cap = math.ceil(top_k / 2)
+    pool = _score_and_sort(channels, target_region, min_cas=min_cas, min_rcas=min_rcas)
+
+    selected: list[dict] = []
+    overflow: list[dict] = []
+    platform_count: dict[str, int] = {}
+
+    for ch in pool:
+        plat = (ch.get("platform") or "unknown").lower()
+        if platform_count.get(plat, 0) < per_platform_cap:
+            platform_count[plat] = platform_count.get(plat, 0) + 1
+            selected.append(ch)
+            if len(selected) >= top_k:
+                break
+        else:
+            overflow.append(ch)
+
+    # Fallback: bổ sung từ overflow nếu chưa đủ
+    for ch in overflow:
+        if len(selected) >= top_k:
+            break
+        selected.append(ch)
+
+    return selected
+

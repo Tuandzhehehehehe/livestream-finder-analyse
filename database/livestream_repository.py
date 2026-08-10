@@ -6,7 +6,7 @@ database/livestream_repository.py — Database & Excel Persistence Layer
 import os
 from openpyxl import load_workbook, Workbook
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func as sqlfunc
 # pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from database.db import engine, livestreams
@@ -152,3 +152,23 @@ def delete_event_by_url(url: str) -> bool:
     with engine.begin() as conn:
         res = conn.execute(delete(livestreams).where(livestreams.c.url == url))
         return res.rowcount > 0
+
+
+def get_summary_stats() -> dict:
+    """Tổng hợp thống kê toàn bộ events trong DB."""
+    def _group(conn, col):
+        rows = conn.execute(
+            select(col, sqlfunc.count(livestreams.c.id)).group_by(col)
+        ).fetchall()
+        return {(r[0] or "unknown"): r[1] for r in rows}
+
+    with engine.connect() as conn:
+        return {
+            "total_events":      conn.execute(sqlfunc.count(livestreams.c.id)).scalar() or 0,
+            "by_platform":       _group(conn, livestreams.c.platform),
+            "by_priority":       _group(conn, livestreams.c.priority),
+            "by_status":         _group(conn, livestreams.c.status),
+            "avg_score":         round(float(conn.execute(sqlfunc.avg(livestreams.c.score)).scalar() or 0), 1),
+            "top_score":         int(conn.execute(sqlfunc.max(livestreams.c.score)).scalar() or 0),
+            "latest_crawled_at": str(v)[:19] if (v := conn.execute(sqlfunc.max(livestreams.c.created_at)).scalar()) else "–",
+        }
