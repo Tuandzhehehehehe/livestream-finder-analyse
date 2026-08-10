@@ -16,3 +16,26 @@
 2026-07-27 10:05:28,208 [INFO] [TIKTOK] Crawl 1 URL...
 2026-07-27 10:05:28,515 [INFO] [TIKTOK] Hoàn tất: 0 lưu | 1 bỏ qua
 2026-07-27 10:05:28,515 [INFO] [AutoChannel] 0 lưu | 0 đã có | 1 lỗi
+2026-08-06 13:05:54,656 [INFO] 🚀 Channel Pipeline [VN]
+2026-08-06 13:05:54,663 [INFO] ✅ 0 xếp hạng | 0 đề xuất
+2026-08-06 13:06:00,000 [INFO] 🔄 CAS cập nhật: 0 kênh
+2026-08-06 13:06:00,002 [INFO] 📈 Growth cập nhật: 0 kênh
+2026-08-06 13:06:03,033 [INFO] 🚀 Channel Pipeline [VN]
+2026-08-06 13:06:03,036 [INFO] ✅ 0 xếp hạng | 0 đề xuất
+2026-08-08 16:49:48,812 [INFO] [YOUTUBE] Crawl 2 URL...
+2026-08-08 16:50:02,151 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@AkshmuGamerZOG
+2026-08-08 16:50:02,153 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@jakestuds
+2026-08-08 16:50:02,153 [INFO] [YOUTUBE] Hoàn tất: 0 lưu | 0 bỏ qua
+2026-08-08 16:50:02,153 [INFO] [AutoChannel] 0 lưu | 0 đã có | 0 lỗi
+2026-08-08 16:50:57,848 [INFO] [YOUTUBE] Crawl 2 URL...
+2026-08-08 16:51:11,514 [INFO]   ✔ Akshmu GamerZ | CAS=14.25
+2026-08-08 16:51:11,550 [INFO]   ✔ Jake Studs | CAS=14.14
+2026-08-08 16:51:11,550 [INFO] [YOUTUBE] Hoàn tất: 2 lưu | 0 bỏ qua
+2026-08-08 16:51:11,551 [INFO] [AutoChannel] 2 lưu | 0 đã có | 0 lỗi
+2026-08-08 21:06:09,826 [INFO] [YOUTUBE] Crawl 4 URL...
+2026-08-08 21:06:35,618 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@LoreKeeperToby
+2026-08-08 21:06:35,620 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@m1st3r_t4c0
+2026-08-08 21:06:35,622 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@mummycharity1
+2026-08-08 21:06:35,625 [WARNING]   ✘ Lưu thất bại: https://www.youtube.com/@mistimediapublishing
+2026-08-08 21:06:35,625 [INFO] [YOUTUBE] Hoàn tất: 0 lưu | 0 bỏ qua
+2026-08-08 21:06:35,625 [INFO] [AutoChannel] 0 lưu | 1 đã có | 0 lỗi

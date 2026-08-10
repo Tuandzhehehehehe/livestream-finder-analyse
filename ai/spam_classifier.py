@@ -132,27 +132,63 @@ def train_spam_model() -> bool:
         return False
 
 
+_SPAM_V2_MODEL = None
+
+def _load_spam_v2_model():
+    global _SPAM_V2_MODEL
+    if _SPAM_V2_MODEL is not None:
+        return _SPAM_V2_MODEL
+    v2_path = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "data", "models", "spam_classifier_v2.pkl")
+    )
+    if os.path.exists(v2_path):
+        try:
+            import pickle
+            with open(v2_path, "rb") as f:
+                _SPAM_V2_MODEL = pickle.load(f)
+            return _SPAM_V2_MODEL
+        except Exception as e:
+            print(f"[Spam Classifier] Error loading spam_v2 model: {e}")
+    return None
+
+
 def predict_spam(title: str, description: str = "") -> Tuple[bool, float]:
     """
     Dự đoán xem tiêu đề + mô tả có phải là Spam/Rác hay không.
+    Sử dụng mô hình Supercharged Spam Classifier v2 nếu có sẵn.
     Trả về: (is_spam: bool, spam_probability: float từ 0.0 đến 1.0)
     """
+    text = f"{str(title or '').strip()}. {str(description or '').strip()[:200]}".strip()
+    if not text:
+        return (False, 0.0)
+
+    # 1. Ưu tiên sử dụng mô hình Supercharged v2 được train trên 15,000+ mẫu
+    v2_artifact = _load_spam_v2_model()
+    if v2_artifact is not None:
+        try:
+            vectorizer = v2_artifact["vectorizer"]
+            clf = v2_artifact["classifier"]
+            vec = vectorizer.transform([text])
+            probs = clf.predict_proba(vec)[0]
+            # probs[1] là xác suất Spam
+            spam_prob = float(probs[1]) if len(probs) > 1 else float(probs[0])
+            is_spam = spam_prob >= 0.65
+            return (is_spam, round(spam_prob, 2))
+        except Exception as e:
+            print(f"[Spam Classifier v2] Prediction fallback: {e}")
+
+    # 2. Fallback sang Active Learning local feedback classifier
     global _CLF, _IS_TRAINED
     if not _IS_TRAINED or _CLF is None:
         train_success = train_spam_model()
         if not train_success or _CLF is None:
             return (False, 0.0)
 
-    text = f"{str(title or '').strip()}. {str(description or '').strip()[:200]}".strip()
-    if not text:
-        return (False, 0.0)
-
     try:
         model_type = _CLF[0]
         if model_type == "minilm":
             minilm_model, clf = _CLF[1], _CLF[2]
             emb = minilm_model.encode([text], normalize_embeddings=True)
-            # clf.predict_proba trả về [p_spam, p_good]
             probs = clf.predict_proba(emb)[0]
             good_prob = float(probs[1]) if len(probs) > 1 else float(probs[0])
             spam_prob = 1.0 - good_prob

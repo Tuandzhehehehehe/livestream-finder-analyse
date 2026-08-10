@@ -29,70 +29,55 @@ from services.benchmarker import BenchmarkRunner, list_benchmark_reports
 
 
 def print_report_summary(report: dict):
-    print("\n" + "=" * 80)
-    print("📊 BÁO CÁO BENCHMARK KẾT QUẢ CRAWLER VÀ TOKEN WASTE")
-    print("=" * 80)
+    print("\n" + "=" * 85)
+    print("🎯 BÁO CÁO ĐÁNH GIÁ AGENT LIVESTREAM & TOKEN WASTE (4-PILLAR EVALUATOR)")
+    print("=" * 85)
 
     g = report.get("goal", "")
     dur = report.get("duration_seconds", 0)
     ts = report.get("timestamp", "")
-    print(f"🎯 Mục tiêu (Goal)      : {g}")
-    print(f"🕒 Thời gian thực thi    : {dur}s ({ts})")
-    print(f"⚡ Thời gian compile     : {report.get('compile_time_seconds', 0)}s")
-    print("-" * 80)
+    print(f"  • Mục tiêu tìm kiếm (Goal)   : '{g}'")
+    print(f"  • Thời gian chạy (Execution) : {dur}s | Compile Goal Profile: {report.get('compile_time_seconds', 0)}s")
+    print(f"  • Thời điểm ghi nhận (Time)  : {ts[:19].replace('T', ' ')}")
+    print("-" * 85)
 
-    om = report.get("overall_metrics", {})
-    print("📈 TỔNG QUAN HIỆU SUẤT CRAWLER:")
-    print(f"  • Tổng sự kiện tìm thấy (Raw)       : {om.get('total_raw_events', 0)}")
-    print(f"  • Sự kiện sau loại trùng (Dedup)    : {om.get('total_dedup_events', 0)} ({om.get('overall_dedup_rate', 0)}% trùng lặp)")
-    print(f"  • Sự kiện đạt ngưỡng phù hợp (Score): {om.get('total_relevance_passed', 0)}")
-    print(f"  • Sự kiện ưu tiên cao (High)        : {om.get('total_high_priority', 0)}")
-    print(f"  • Leads chất lượng được lưu DB       : {om.get('useful_leads_saved', 0)}")
-    print("-" * 80)
+    em = report.get("evaluation_metrics", {})
+    p1 = em.get("pillar_1_scraper_performance", {})
+    p2 = em.get("pillar_2_relevance_quality", {})
+    p3 = em.get("pillar_3_token_economy", {})
+    p4 = em.get("pillar_4_lead_actionability", {})
 
-    pb = report.get("platform_breakdown", {})
-    print("🌐 CHI TIẾT THEO TỪNG NỀN TẢNG (PLATFORM BREAKDOWN):")
-    print(f"{'Nền tảng':<12} | {'Thời gian (s)':<13} | {'Raw':<6} | {'Dedup':<6} | {'Scored':<7} | {'Avg Score':<10} | {'Throughput':<12}")
-    print("-" * 80)
-    for plat, pdata in pb.items():
-        err = pdata.get("error")
-        if err:
-            print(f"{plat:<12} | {'LỖI: ' + err[:50]}")
-        else:
-            print(
-                f"{plat:<12} | "
-                f"{pdata.get('latency_seconds', 0):<13.2f} | "
-                f"{pdata.get('raw_count', 0):<6} | "
-                f"{pdata.get('dedup_count', 0):<6} | "
-                f"{pdata.get('scored_count', 0):<7} | "
-                f"{pdata.get('avg_score', 0):<10} | "
-                f"{pdata.get('throughput_items_per_sec', 0):<12.1f} sps"
-            )
-    print("-" * 80)
+    print("1️⃣ TRỤ CỘT 1: HIỆU NĂNG THU THẬP & PLAYWRIGHT SCRAPER (SCRAPER PERFORMANCE)")
+    print(f"   • Live Precision Rate (Tỷ lệ Live chuẩn) : {p1.get('live_precision_rate', 0)}% (Không bị lẫn video tĩnh)")
+    print(f"   • Field Completeness (Đầy đủ dữ liệu)   : {p1.get('field_completeness_rate', 0)}% (Title, Channel, Status, Time)")
+    print(f"   • Tốc độ bóc tách (Throughput)          : {p1.get('throughput_items_per_sec', 0)} items/s")
+    print(f"   • Độ trễ trung bình / item (Latency)    : {p1.get('avg_latency_per_item_sec', 0)}s / item")
+    print("-" * 85)
 
-    tm = report.get("token_metrics", {})
-    print("💡 ĐO LƯỜNG SỬ DỤNG VÀ LÃNG PHÍ TOKEN AI (TOKEN WASTE METRICS):")
-    print(f"  • Prompt Tokens                        : {tm.get('total_prompt_tokens', 0):,}")
-    print(f"  • Candidate Tokens                     : {tm.get('total_candidate_tokens', 0):,}")
-    print(f"  • Tổng Token Tiêu Thụ                   : {tm.get('total_tokens_consumed', 0):,}")
-    print(f"  • Token Có Ích (Useful Tokens)          : {tm.get('useful_tokens', 0):,}")
-    print(f"  • Token Lãng Phí (Wasted Tokens)        : {tm.get('wasted_tokens', 0):,} ({tm.get('token_waste_percentage', 0)}%)")
-    print(f"  • Hiệu Suất Sử Dụng Token (Efficiency)  : {tm.get('token_efficiency_percentage', 0)}%")
-    print(f"  • Chi Phí Token / Lead Chất Lượng      : {tm.get('tokens_per_qualified_lead', 0):,} tokens")
+    print("2️⃣ TRỤ CỘT 2: CHẤT LƯỢNG PHÙ HỢP & PHÂN LOẠI AI (RELEVANCE & AI QUALITY)")
+    print(f"   • Precision@5 (Chính xác trong Top 5)   : {p2.get('precision_at_5', 0)}%")
+    print(f"   • Precision@10 (Chính xác trong Top 10) : {p2.get('precision_at_10', 0)}%")
+    print(f"   • Spam Leakage Rate (Rác lọt qua lọc)   : {p2.get('spam_leakage_rate', 0)}% (Chặn sạch video không liên quan)")
+    print(f"   • Mean Reciprocal Rank (MRR)            : {p2.get('mean_reciprocal_rank', 0)} (Điểm xếp hạng kết quả tốt nhất)")
+    print(f"   • Status Classification Accuracy        : {p2.get('status_accuracy_rate', 0)}% (Đúng trạng thái LIVE/UPCOMING)")
+    print("-" * 85)
 
-    wb = tm.get("waste_breakdown", {})
+    print("3️⃣ TRỤ CỘT 3: HIỆU QUẢ KINH TẾ & TIẾT KIỆM TOKEN AI (TOKEN ECONOMY & WASTE)")
+    print(f"   • Tổng Token Tiêu Thụ                   : {p3.get('total_tokens_consumed', 0):,} tokens (~ ${p3.get('cost_estimate_usd', 0):.6f})")
+    print(f"   • Token Có Ích (Useful Tokens)          : {p3.get('useful_tokens', 0):,} ({p3.get('token_efficiency_percentage', 0)}% hiệu quả)")
+    print(f"   • Token Lãng Phí (Wasted Tokens)        : {p3.get('wasted_tokens', 0):,} ({p3.get('token_waste_percentage', 0)}% lãng phí)")
+    print(f"   • Chi Phí Token / Lead Đạt Chuẩn        : {p3.get('tokens_per_qualified_lead', 0):,} tokens / Lead")
+    
+    wb = report.get("token_metrics", {}).get("waste_breakdown", {})
     if wb:
-        print("\n  ⚠️ Phân tích nguyên nhân lãng phí token:")
-        print(f"    - Do sự kiện không phù hợp (Score < 20) : {wb.get('low_relevance_waste', 0):,} tokens")
-        print(f"    - Do sự kiện bị trùng lặp trong DB/Excel: {wb.get('duplicate_waste', 0):,} tokens")
-        print(f"    - Do sự kiện đã hết hạn/quá cũ         : {wb.get('expired_time_waste', 0):,} tokens")
+        print(f"     └─ Phân tích lãng phí: {wb.get('low_relevance_waste', 0):,} tokens (Score < 20) | {wb.get('duplicate_waste', 0):,} tokens (Trùng DB)")
+    print("-" * 85)
 
-    cb = tm.get("category_breakdown", {})
-    if cb:
-        print("\n  📌 Tiêu thụ token theo từng công đoạn:")
-        for cat, cnt in cb.items():
-            print(f"    - {cat:<18}: {cnt:,} tokens")
-    print("=" * 80 + "\n")
+    print("4️⃣ TRỤ CỘT 4: GIÁ TRỊ CHUYỂN ĐỔI & TÍNH HÀNH ĐỘNG (LEAD ACTIONABILITY)")
+    print(f"   • High-Priority Leads (Score >= 80)     : {p4.get('high_priority_ratio', 0)}% ({report.get('overall_metrics', {}).get('total_high_priority', 0)} leads)")
+    print(f"   • Điểm Tiềm Năng Trung Bình (Avg Score) : {p4.get('avg_lead_score', 0)} / 100")
+    print(f"   • Số Lead Đạt Chuẩn Lưu DB               : {p4.get('useful_lead_count', 0)} leads")
+    print("=" * 85 + "\n")
 
 
 def main():
@@ -135,6 +120,34 @@ def main():
         help="Enable cache (default is false for benchmark accuracy)",
     )
     parser.add_argument(
+        "--run-golden-eval",
+        action="store_true",
+        help="Run comprehensive benchmark against the Golden Dataset with Third-Party LLM Judge",
+    )
+    parser.add_argument(
+        "--golden-cases",
+        type=int,
+        default=3,
+        help="Number of test cases to run from golden_dataset.json (default: 3)",
+    )
+    parser.add_argument(
+        "--no-judge",
+        action="store_true",
+        help="Disable LLM-as-a-Judge for Golden Dataset (use rule-based scoring)",
+    )
+    parser.add_argument(
+        "--hf-dataset",
+        type=str,
+        default=None,
+        help="Run benchmark against universal Hugging Face dataset (e.g. 'BeIR/fiqa', 'BeIR/scifact', 'microsoft/ms_marco')",
+    )
+    parser.add_argument(
+        "--hf-queries",
+        type=int,
+        default=3,
+        help="Number of queries to test from Hugging Face dataset (default: 3)",
+    )
+    parser.add_argument(
         "--list-reports",
         action="store_true",
         help="List previously generated benchmark reports",
@@ -146,6 +159,31 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # ── Chạy Universal Hugging Face Benchmark ──────────────────────────────
+    if args.hf_dataset:
+        from services.huggingface_evaluator import HuggingFaceBenchmarkEvaluator
+        hf_eval = HuggingFaceBenchmarkEvaluator(
+            dataset_name=args.hf_dataset,
+            max_queries=args.hf_queries,
+        )
+        report = hf_eval.evaluate_agent_against_hf_benchmark()
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
+
+    # ── Chạy Golden Benchmark với Hội đồng giám khảo bên thứ 3 ───────────────
+    if args.run_golden_eval:
+        from services.golden_evaluator import GoldenDatasetEvaluator
+        evaluator = GoldenDatasetEvaluator(
+            max_test_cases=args.golden_cases,
+            items_per_query=args.limit,
+            use_llm_judge=not args.no_judge,
+        )
+        report = evaluator.run_evaluation()
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
 
     if args.list_reports:
         reports = list_benchmark_reports(limit=10)

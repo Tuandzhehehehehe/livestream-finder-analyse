@@ -112,108 +112,238 @@ def is_valid_event(details: dict) -> bool:
     return True
 
 
-def crawl_youtube_live_web(keywords, limit=20):
-    """Playwright scraper cho YouTube Live streams: Tự động truy cập trang tìm kiếm và chọn tab Live/Trực tiếp."""
-    events = []
-    seen_urls = set()
+def crawl_youtube_playwright(
+    keywords: list,
+    limit: int = 20,
+    mode: str = "all",  # "live", "upcoming", or "all"
+    use_headless: bool = True,
+    max_scrolls: int = 4,
+) -> list:
+    """
+    Chuẩn hóa Playwright Scraper cho YouTube Search:
+    - Sử dụng URL search parameter (`sp`) để lọc trực tiếp Live hoặc Upcoming.
+    - Xử lý tự động đóng popup Cookie/Consent của Google.
+    - Trích xuất siêu dữ liệu giàu thông tin: Badge LIVE, Concurrent Viewers, Scheduled Time, Channel Name & Handle.
+    - Cuộn trang thông minh (Infinite Scroll) để thu thập đủ số lượng `limit`.
+    """
+    import re
     from urllib.parse import quote_plus
+    # pyrefly: ignore [missing-import]
     from playwright.sync_api import sync_playwright
     from crawler._browser import launch_context
 
-    try:
-        with sync_playwright() as p:
-            context = launch_context(p, "youtube_live", headless=True)
-            page = context.pages[0] if context.pages else context.new_page()
-
-            for kw in keywords[:4]:
-                if len(events) >= limit:
-                    break
-                url = f"https://www.youtube.com/results?search_query={quote_plus(kw)}"
-                try:
-                    print(f"[YouTube Live Web] Truy cập tìm kiếm YouTube cho: '{kw}'...")
-                    page.goto(url, timeout=25000)
-                    page.wait_for_timeout(2000)
-
-                    # Tự động tìm và bấm vào chip/tab "Live" hoặc "Trực tiếp"
-                    chips = page.query_selector_all("yt-chip-cloud-chip-renderer")
-                    live_chip = None
-                    for chip in chips:
-                        chip_text = str(chip.inner_text() or "").strip().lower()
-                        if chip_text in ["live", "trực tiếp"]:
-                            live_chip = chip
-                            break
-
-                    if live_chip:
-                        print(f"[YouTube Live Web] Bấm tab '{live_chip.inner_text().strip()}'...")
-                        live_chip.click()
-                        page.wait_for_timeout(3000)
-                    else:
-                        print("[YouTube Live Web] Không thấy chip 'Live' - Thử bấm nút Bộ lọc (Filters)...")
-                        filter_btn = page.query_selector("ytd-toggle-button-renderer:has-text('Filters'), ytd-toggle-button-renderer:has-text('Bộ lọc')")
-                        if filter_btn:
-                            filter_btn.click()
-                            page.wait_for_timeout(1000)
-                            live_opt = page.query_selector("ytd-search-filter-renderer:has-text('Live'), ytd-search-filter-renderer:has-text('Trực tiếp')")
-                            if live_opt:
-                                live_opt.click()
-                                page.wait_for_timeout(3000)
-
-                    items = page.query_selector_all("ytd-video-renderer")
-                    print(f"[YouTube Live Web] Tìm thấy {len(items)} video trong tab Live")
-
-                    for item in items:
-                        title_elem = item.query_selector("#video-title")
-                        if not title_elem:
-                            continue
-                        title = title_elem.inner_text().strip()
-                        href = title_elem.get_attribute("href")
-                        if not href:
-                            continue
-                        if href.startswith("/"):
-                            href = f"https://www.youtube.com{href}"
-                        if href in seen_urls:
-                            continue
-                        seen_urls.add(href)
-
-                        desc_elem = item.query_selector("#description-text")
-                        desc = desc_elem.inner_text().strip() if desc_elem else ""
-
-                        events.append({
-                            "title": title,
-                            "platform": "YouTube",
-                            "url": href,
-                            "description": desc,
-                            "keyword": kw,
-                            "status": "LIVE",
-                            "start_time": "",
-                            "actual_start_time": "",
-                            "actual_end_time": ""
-                        })
-                        if len(events) >= limit:
-                            break
-                except Exception as e:
-                    print(f"[YouTube Live Web] Lỗi cào cho từ khóa '{kw}': {e}")
-    except Exception as e:
-        print(f"[YouTube Live Web] Lỗi Playwright: {e}")
-
-    return events
-
-
-def crawl_youtube_live(keywords: list, limit: int = 20, use_api: Optional[bool] = None) -> list:
-    if use_api is None:
-        env_val = os.getenv("ENABLE_YOUTUBE_API", "true").lower()
-        use_api = env_val not in ("false", "0", "no", "off")
-
-    if not use_api:
-        print("[YouTube Crawler] Chế độ YouTube API đang TẮT -> Dùng Playwright Live Scraper cho YouTube...")
-        return crawl_youtube_live_web(keywords, limit=limit)
-
-    if not youtube:
-        print("[YouTube Crawler] YOUTUBE_API_KEY chưa có - tự động dùng Playwright Live Scraper cho YouTube...")
-        return crawl_youtube_live_web(keywords, limit=limit)
     events = []
     seen_urls = set()
 
+    # URL filter parameter constants (YouTube 'sp' search parameter)
+    SP_LIVE = "EgJAAQ%253D%253D"       # Filter: Live now
+    SP_UPCOMING = "CAASBBABGAE%253D"   # Filter: Live/Upcoming this week
+
+    search_modes = []
+    if mode == "live":
+        search_modes = [("LIVE", SP_LIVE)]
+    elif mode == "upcoming":
+        search_modes = [("UPCOMING", SP_UPCOMING)]
+    else:
+        # Default "all": Quét cả Live đang phát và Upcoming sự kiện sắp tới
+        search_modes = [("LIVE", SP_LIVE), ("UPCOMING", SP_UPCOMING)]
+
+    try:
+        with sync_playwright() as p:
+            context = launch_context(p, "youtube_live", headless=use_headless)
+            page = context.pages[0] if context.pages else context.new_page()
+
+            # Set viewport & user-agent chuẩn
+            try:
+                page.set_viewport_size({"width": 1440, "height": 900})
+            except Exception:
+                pass
+
+            for kw in keywords[:5]:
+                if len(events) >= limit:
+                    break
+
+                for status_mode, sp_param in search_modes:
+                    if len(events) >= limit:
+                        break
+
+                    target_url = f"https://www.youtube.com/results?search_query={quote_plus(kw)}&sp={sp_param}"
+                    print(f"[YouTube Playwright] [{status_mode}] Đang tìm kiếm: '{kw}'...")
+
+                    try:
+                        page.goto(target_url, timeout=25000, wait_until="domcontentloaded")
+                        page.wait_for_timeout(1800)
+
+                        # ── 1. Tự động đóng Google / YouTube Consent Popup ────────
+                        consent_selectors = [
+                            "button[aria-label*='Reject all']",
+                            "button[aria-label*='Từ chối tất cả']",
+                            "button[aria-label*='Accept all']",
+                            "button[aria-label*='Chấp nhận tất cả']",
+                            "ytd-consent-bump-v2-lightbox button",
+                            "#dismiss-button",
+                        ]
+                        for c_sel in consent_selectors:
+                            try:
+                                btn = page.query_selector(c_sel)
+                                if btn and btn.is_visible():
+                                    btn.click()
+                                    page.wait_for_timeout(1000)
+                                    break
+                            except Exception:
+                                pass
+
+                        # ── 2. Fallback: Nếu không có sp param, tương tác chip Live ──
+                        chips = page.query_selector_all("yt-chip-cloud-chip-renderer")
+                        for chip in chips:
+                            try:
+                                chip_txt = str(chip.inner_text() or "").strip().lower()
+                                if status_mode == "LIVE" and chip_txt in ["live", "trực tiếp"]:
+                                    chip.click()
+                                    page.wait_for_timeout(1500)
+                                    break
+                            except Exception:
+                                pass
+
+                        # ── 3. Infinite Scroll để tải thêm video nếu cần ──────────
+                        scroll_count = 0
+                        while scroll_count < max_scrolls:
+                            items_found = page.query_selector_all("ytd-video-renderer")
+                            if len(items_found) >= (limit - len(events)) or len(items_found) >= 15:
+                                break
+                            page.evaluate("window.scrollBy(0, 1200)")
+                            page.wait_for_timeout(1000)
+                            scroll_count += 1
+
+                        # ── 4. Bóc tách siêu dữ liệu DOM chi tiết ──────────────────
+                        items = page.query_selector_all("ytd-video-renderer")
+                        print(f"[YouTube Playwright] Tìm thấy {len(items)} items ({status_mode}) cho '{kw}'")
+
+                        for item in items:
+                            try:
+                                title_elem = item.query_selector("#video-title")
+                                if not title_elem:
+                                    continue
+
+                                title = str(title_elem.inner_text() or "").strip()
+                                href = title_elem.get_attribute("href")
+                                if not href or not title:
+                                    continue
+
+                                if href.startswith("/"):
+                                    href = f"https://www.youtube.com{href}"
+
+                                # Normalize video URL (loại bỏ timestamp/playlist params)
+                                v_match = re.search(r"[?&]v=([a-zA-Z0-9_-]{11})", href)
+                                video_id = v_match.group(1) if v_match else ""
+                                clean_url = f"https://www.youtube.com/watch?v={video_id}" if video_id else href.split("&")[0]
+
+                                if clean_url in seen_urls:
+                                    continue
+
+                                # Trích xuất mô tả / snippet
+                                desc_elem = item.query_selector("#description-text, .metadata-snippet-container")
+                                desc = str(desc_elem.inner_text() or "").strip() if desc_elem else ""
+
+                                # Trích xuất thông tin kênh (Channel Name & URL)
+                                ch_elem = item.query_selector("#channel-name a, #channel-info #text, #byline a")
+                                channel_name = str(ch_elem.inner_text() or "").strip() if ch_elem else ""
+                                ch_href = ch_elem.get_attribute("href") if ch_elem else ""
+                                channel_url = f"https://www.youtube.com{ch_href}" if ch_href and ch_href.startswith("/") else ch_href
+
+                                # Nhận diện chính xác trạng thái LIVE vs UPCOMING
+                                is_live_badge = bool(item.query_selector(
+                                    ".badge-style-type-live-now-alternate, badge-shape:has-text('LIVE'), badge-shape:has-text('TRỰC TIẾP'), [aria-label*='LIVE']"
+                                ))
+
+                                meta_line = item.query_selector("#metadata-line")
+                                meta_text = str(meta_line.inner_text() or "").strip() if meta_line else ""
+
+                                # Trích xuất số người xem trực tiếp (Concurrent Viewers)
+                                viewers = ""
+                                view_match = re.search(r"([\d.,KMkm]+\s*(?:watching|người đang xem|đang xem))", meta_text, re.IGNORECASE)
+                                if view_match:
+                                    viewers = view_match.group(1).strip()
+
+                                # Trích xuất thời gian lên lịch phát sóng (Scheduled Time)
+                                scheduled_time_str = ""
+                                sched_match = re.search(r"((?:Scheduled for|Live in|Sắp diễn ra|Sắp chiếu|Premiere)\s*[^\n•]+)", meta_text, re.IGNORECASE)
+                                if sched_match:
+                                    scheduled_time_str = sched_match.group(1).strip()
+
+                                # Quyết định status chuẩn xác
+                                inferred_status = status_mode
+                                if is_live_badge or "watching" in meta_text.lower() or "đang xem" in meta_text.lower():
+                                    inferred_status = "LIVE"
+                                elif scheduled_time_str or "scheduled" in meta_text.lower() or "sắp" in meta_text.lower():
+                                    inferred_status = "UPCOMING"
+
+                                seen_urls.add(clean_url)
+                                events.append({
+                                    "title": title,
+                                    "platform": "YouTube",
+                                    "url": clean_url,
+                                    "video_id": video_id,
+                                    "description": desc,
+                                    "channel_name": channel_name,
+                                    "channel_url": channel_url,
+                                    "concurrent_viewers": viewers,
+                                    "keyword": kw,
+                                    "status": inferred_status,
+                                    "start_time": scheduled_time_str,
+                                    "scheduled_start_time": scheduled_time_str,
+                                    "actual_start_time": "" if inferred_status == "UPCOMING" else "LIVE",
+                                    "actual_end_time": "",
+                                })
+
+                                if len(events) >= limit:
+                                    break
+                            except Exception as parse_err:
+                                print(f"[YouTube Playwright] Item parse error: {parse_err}")
+
+                    except Exception as page_err:
+                        print(f"[YouTube Playwright] Error scraping URL {target_url}: {page_err}")
+
+    except Exception as e:
+        print(f"[YouTube Playwright] Fatal Playwright error: {e}")
+
+    # Sắp xếp ưu tiên: LIVE trước, sau đó tới UPCOMING
+    status_order = {"LIVE": 0, "UPCOMING": 1, "COMPLETED": 2}
+    events.sort(key=lambda x: status_order.get(x.get("status", "COMPLETED"), 99))
+    return events
+
+
+def crawl_youtube_live_web(keywords: list, limit: int = 20, mode: str = "all", use_headless: bool = True) -> list:
+    """Wrapper tương thích gọi Playwright Scraper chuẩn hóa cho YouTube."""
+    return crawl_youtube_playwright(keywords, limit=limit, mode=mode, use_headless=use_headless)
+
+
+def crawl_youtube_live(
+    keywords: list,
+    limit: int = 20,
+    use_api: Optional[bool] = None,
+    mode: str = "all",
+    use_headless: bool = True,
+) -> list:
+    """
+    YouTube Crawler chính:
+    - Ưu tiên Playwright Search Scraper chuẩn hóa khi `use_api=False` hoặc khi chưa có API Key / hết Quota.
+    - Hỗ trợ đầy đủ bộ lọc Live, Upcoming và bóc tách metadata.
+    """
+    if use_api is None:
+        env_val = os.getenv("ENABLE_YOUTUBE_API", "false").lower()
+        use_api = env_val in ("true", "1", "yes", "on")
+
+    if not use_api:
+        print("[YouTube Crawler] Đang dùng Playwright Search Scraper chuẩn hóa cho YouTube...")
+        return crawl_youtube_playwright(keywords, limit=limit, mode=mode, use_headless=use_headless)
+
+    if not youtube:
+        print("[YouTube Crawler] YOUTUBE_API_KEY chưa có -> Tự động chuyển sang Playwright Search Scraper...")
+        return crawl_youtube_playwright(keywords, limit=limit, mode=mode, use_headless=use_headless)
+
+    events = []
+    seen_urls = set()
 
     for keyword in keywords:
         try:
@@ -248,15 +378,15 @@ def crawl_youtube_live(keywords: list, limit: int = 20, use_api: Optional[bool] 
                     err_str = str(e)
                     print(f"Error crawling keyword '{keyword}' ({status}): {e}")
                     if "quota" in err_str.lower() or "429" in err_str or "rateLimitExceeded" in err_str:
-                        print("[YouTube Crawler] [WARNING] YouTube API hết Quota (429) -> Tự động chuyển sang Playwright Live Scraper cho YouTube...")
-                        return crawl_youtube_live_web(keywords, limit=limit)
+                        print("[YouTube Crawler] [WARNING] YouTube API hết Quota (429) -> Tự động chuyển sang Playwright Search Scraper...")
+                        return crawl_youtube_playwright(keywords, limit=limit, mode=mode, use_headless=use_headless)
 
         except Exception as e:
             print(f"Error expanding keyword '{keyword}': {e}")
 
     if not events:
-        print("[YouTube Crawler] [WARNING] Không có kết quả từ API -> Fallback sang Playwright Live Scraper cho YouTube...")
-        return crawl_youtube_live_web(keywords, limit=limit)
+        print("[YouTube Crawler] [WARNING] Không có kết quả từ API -> Fallback sang Playwright Search Scraper...")
+        return crawl_youtube_playwright(keywords, limit=limit, mode=mode, use_headless=use_headless)
 
     priority = {"LIVE": 0, "UPCOMING": 1}
     events.sort(key=lambda x: (priority.get(x.get("status"), 99), x.get("scheduled_start_time", "")))

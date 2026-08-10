@@ -159,6 +159,17 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     except Exception as e:
         print(f"[Relevance Filter] Cross-Encoder error: {e}")
 
+    # ── Solution 3: Title Engagement & Likes Predictor (Direction 1) ────
+    try:
+        from ai.engagement_predictor import predict_title_engagement
+        eng_score = predict_title_engagement(title=event.get("title", ""))
+        event["engagement_predicted_score"] = eng_score
+        # Tăng điểm thưởng nếu tiêu đề có tiềm năng tương tác cao
+        if eng_score >= 70:
+            score = max(score, int(score * 0.7 + eng_score * 0.3))
+    except Exception as e:
+        print(f"[Relevance Filter] Engagement Predictor error: {e}")
+
     return score
 
 

@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-08-08T15:07:30.649530+00:00",
+  "evaluation_type": "Golden Dataset Benchmark (LLM-as-a-Judge)",
+  "benchmark_dataset": "data/golden_dataset.json",
+  "total_test_cases": 1,
+  "total_duration_seconds": 34.88,
+  "overall_benchmarks": {
+    "g_eval_judge_score": 163.0,
+    "ndcg_at_5": 1.0,
+    "ndcg_at_10": 1.0,
+    "mrr_mean_reciprocal_rank": 1.0,
+    "map_mean_average_precision": 1.0,
+    "spam_leakage_rate": 0.0,
+    "total_items_tested": 2
+  },
+  "test_case_breakdown": [
+    {
+      "test_id": "GOLDEN_001",
+      "goal": "AI in HR & Talent Acquisition",
+      "category": "Human Resources",
+      "latency_seconds": 34.88,
+      "items_retrieved": 2,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_10": 1.0,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "AI in Recruitment and Talent Acquisition (HR)",
+          "url": "https://youtube.com/watch?v=lNLf-mPHnJI",
+          "channel": "DoItHow2",
+          "judge_score": 250.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "Heuristic match score."
+        },
+        {
+          "rank": 2,
+          "title": "AI Tools Every Recruiter Must Learn in 2026 | Hire Faster & Work Smarter",
+          "url": "https://youtube.com/watch?v=vnnsLA0Bmh8",
+          "channel": "USITRecruitment",
+          "judge_score": 76.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "Heuristic match score."
+        }
+      ]
+    }
+  ]
+}

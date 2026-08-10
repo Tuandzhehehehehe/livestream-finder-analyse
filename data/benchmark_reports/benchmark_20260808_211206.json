@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-08-08T14:12:06.425632+00:00",
+  "goal": "AI Automation",
+  "duration_seconds": 23.38,
+  "compile_time_seconds": 0.0,
+  "platforms": [
+    "youtube"
+  ],
+  "overall_metrics": {
+    "total_raw_events": 3,
+    "total_dedup_events": 3,
+    "total_relevance_passed": 2,
+    "total_high_priority": 2,
+    "total_medium_priority": 0,
+    "useful_leads_saved": 2,
+    "overall_dedup_rate": 0.0
+  },
+  "evaluation_metrics": {
+    "pillar_1_scraper_performance": {
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 100.0,
+      "throughput_items_per_sec": 0.13,
+      "avg_latency_per_item_sec": 7.79
+    },
+    "pillar_2_relevance_quality": {
+      "precision_at_5": 100.0,
+      "precision_at_10": 100.0,
+      "spam_leakage_rate": 0.0,
+      "mean_reciprocal_rank": 1.0,
+      "status_accuracy_rate": 100.0
+    },
+    "pillar_3_token_economy": {
+      "total_tokens_consumed": 0,
+      "useful_tokens": 0,
+      "wasted_tokens": 0,
+      "token_efficiency_percentage": 100.0,
+      "token_waste_percentage": 0.0,
+      "tokens_per_qualified_lead": 0.0,
+      "cost_estimate_usd": 0.0
+    },
+    "pillar_4_lead_actionability": {
+      "high_priority_ratio": 100.0,
+      "avg_lead_score": 54.0,
+      "useful_lead_count": 2
+    }
+  },
+  "platform_breakdown": {
+    "youtube": {
+      "latency_seconds": 5.738,
+      "raw_count": 3,
+      "dedup_count": 3,
+      "valid_time_count": 3,
+      "scored_count": 2,
+      "avg_score": 54.0,
+      "high_priority_count": 2,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 100.0,
+      "throughput_items_per_sec": 0.52,
+      "error": null
+    }
+  },
+  "token_metrics": {
+    "total_prompt_tokens": 0,
+    "total_candidate_tokens": 0,
+    "total_tokens_consumed": 0,
+    "useful_tokens": 0,
+    "wasted_tokens": 0,
+    "waste_breakdown": {
+      "low_relevance_waste": 0,
+      "duplicate_waste": 0,
+      "expired_time_waste": 0
+    },
+    "token_waste_percentage": 0.0,
+    "token_efficiency_percentage": 100.0,
+    "tokens_per_qualified_lead": 0.0,
+    "category_breakdown": {},
+    "model_breakdown": {}
+  }
+}

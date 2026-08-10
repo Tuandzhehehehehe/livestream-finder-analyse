@@ -209,6 +209,17 @@ class BenchmarkRunner:
                 1,
             )
 
+            # Field completeness check
+            completed_fields_sum = 0
+            for it in raw_items:
+                fields_ok = sum(1 for f in ["title", "url", "status", "channel_name"] if it.get(f))
+                completed_fields_sum += (fields_ok / 4.0)
+            completeness_rate = round((completed_fields_sum / max(1, len(raw_items))) * 100, 1)
+
+            # Live precision check (Live or Upcoming vs static VODs)
+            live_status_count = sum(1 for it in raw_items if it.get("status") in ("LIVE", "UPCOMING"))
+            live_precision = round((live_status_count / max(1, len(raw_items))) * 100, 1)
+
             platform_results[plat] = {
                 "latency_seconds": p_latency,
                 "raw_count": len(raw_items),
@@ -219,6 +230,8 @@ class BenchmarkRunner:
                 "high_priority_count": high_count,
                 "medium_priority_count": med_count,
                 "low_priority_count": low_count,
+                "live_precision_rate": live_precision,
+                "field_completeness_rate": completeness_rate,
                 "throughput_items_per_sec": round(len(raw_items) / max(0.001, p_latency), 2),
                 "error": error_msg,
             }
@@ -286,7 +299,7 @@ class BenchmarkRunner:
 
         total_duration = round(time.time() - start_time, 2)
 
-        # Step 4: Token Usage Summary
+        # Step 4: 4-Pillar Agent Evaluation Metrics
         token_entries = get_token_log_entries(timestamp_start_tokens)
         token_summary = summarize_tokens(token_entries)
         total_tokens_consumed = token_summary["total_tokens"]
@@ -304,6 +317,84 @@ class BenchmarkRunner:
         total_dedup = sum(v["dedup_count"] for v in platform_results.values())
         total_scored = sum(v["scored_count"] for v in platform_results.values())
         total_high = sum(v["high_priority_count"] for v in platform_results.values())
+        total_med = sum(v["medium_priority_count"] for v in platform_results.values())
+
+        # Pillar 1: Scraper Performance
+        total_live_items = sum(1 for it in all_raw_events if it.get("status") in ("LIVE", "UPCOMING"))
+        live_precision_overall = round((total_live_items / max(1, total_raw)) * 100, 1)
+        
+        all_field_checks = 0
+        for it in all_raw_events:
+            ok_cnt = sum(1 for f in ["title", "url", "status", "channel_name"] if it.get(f))
+            all_field_checks += (ok_cnt / 4.0)
+        overall_completeness = round((all_field_checks / max(1, total_raw)) * 100, 1)
+
+        # Pillar 2: Relevance & AI Precision
+        top_5_events = all_dedup_events[:5]
+        top_10_events = all_dedup_events[:10]
+        p_at_5 = round((sum(1 for it in top_5_events if it.get("score", 0) >= 40) / max(1, len(top_5_events))) * 100, 1) if top_5_events else 0.0
+        p_at_10 = round((sum(1 for it in top_10_events if it.get("score", 0) >= 40) / max(1, len(top_10_events))) * 100, 1) if top_10_events else 0.0
+        
+        spam_items_count = sum(1 for it in all_dedup_events if it.get("score", 0) < 20)
+        spam_leakage_rate = round((spam_items_count / max(1, len(all_dedup_events))) * 100, 1)
+
+        # Mean Reciprocal Rank (MRR)
+        first_relevant_rank = None
+        for idx, it in enumerate(all_dedup_events):
+            if it.get("score", 0) >= 40:
+                first_relevant_rank = idx + 1
+                break
+        mrr = round(1.0 / first_relevant_rank, 3) if first_relevant_rank else 0.0
+
+        # Pillar 4: Lead Actionability & Third-Party LLM Judge
+        high_priority_ratio = round((total_high / max(1, total_scored)) * 100, 1)
+        avg_lead_score = round(sum(it.get("score", 0) for it in all_dedup_events) / max(1, len(all_dedup_events)), 1)
+
+        # Evaluate with Third-Party LLM-as-a-Judge
+        from ai.judge_evaluator import evaluate_with_llm_judge
+        from services.golden_evaluator import compute_ndcg_at_k
+
+        judge_scores = []
+        judge_evaluated_items = []
+        relevance_grades = []
+
+        for rank, ev in enumerate(all_dedup_events[:10], 1):
+            title_txt = ev.get("title", "")
+            desc_txt = ev.get("description", "")
+            ch_txt = ev.get("channel_name", "")
+            st_txt = ev.get("status", "LIVE")
+            vw_txt = ev.get("concurrent_viewers", "")
+
+            j_res = evaluate_with_llm_judge(
+                title=title_txt,
+                description=desc_txt,
+                channel_name=ch_txt,
+                goal=self.goal,
+                status=st_txt,
+                viewers=vw_txt,
+            )
+            j_sc = j_res.get("judge_score", 0.0)
+            judge_scores.append(j_sc)
+
+            rel_g = 3.0 if j_sc >= 80 else (2.0 if j_sc >= 50 else (1.0 if j_sc >= 30 else 0.0))
+            relevance_grades.append(rel_g)
+
+            judge_evaluated_items.append({
+                "rank": rank,
+                "title": title_txt,
+                "url": ev.get("url", ""),
+                "channel_name": ch_txt,
+                "status": st_txt,
+                "viewers": vw_txt,
+                "judge_score": j_sc,
+                "is_relevant": j_res.get("is_relevant", j_sc >= 50),
+                "is_spam": j_res.get("is_spam", False),
+                "critique": j_res.get("critique", ""),
+                "judge_model": j_res.get("judge_model", "third-party-judge"),
+            })
+
+        ndcg_5_judge = compute_ndcg_at_k(relevance_grades, k=5)
+        avg_g_eval = round(sum(judge_scores) / max(1, len(judge_scores)), 1)
 
         report = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -316,8 +407,44 @@ class BenchmarkRunner:
                 "total_dedup_events": total_dedup,
                 "total_relevance_passed": total_scored,
                 "total_high_priority": total_high,
+                "total_medium_priority": total_med,
                 "useful_leads_saved": useful_lead_count,
                 "overall_dedup_rate": round((1 - total_dedup / max(1, total_raw)) * 100, 1),
+            },
+            "third_party_judge": {
+                "g_eval_score": avg_g_eval,
+                "ndcg_at_5": ndcg_5_judge,
+                "items_evaluated": len(judge_evaluated_items),
+                "evaluated_items": judge_evaluated_items,
+            },
+            "evaluation_metrics": {
+                "pillar_1_scraper_performance": {
+                    "live_precision_rate": live_precision_overall,
+                    "field_completeness_rate": overall_completeness,
+                    "throughput_items_per_sec": round(total_raw / max(0.001, total_duration), 2),
+                    "avg_latency_per_item_sec": round(total_duration / max(1, total_raw), 2),
+                },
+                "pillar_2_relevance_quality": {
+                    "precision_at_5": p_at_5,
+                    "precision_at_10": p_at_10,
+                    "spam_leakage_rate": spam_leakage_rate,
+                    "mean_reciprocal_rank": mrr,
+                    "status_accuracy_rate": 100.0 if total_live_items == total_raw else round((total_live_items / max(1, total_raw)) * 100, 1),
+                },
+                "pillar_3_token_economy": {
+                    "total_tokens_consumed": total_tokens_consumed,
+                    "useful_tokens": useful_tokens_calculated,
+                    "wasted_tokens": total_wasted_tokens,
+                    "token_efficiency_percentage": efficiency_percentage,
+                    "token_waste_percentage": waste_percentage,
+                    "tokens_per_qualified_lead": tokens_per_lead,
+                    "cost_estimate_usd": round((total_tokens_consumed / 1_000_000) * 0.15, 6),
+                },
+                "pillar_4_lead_actionability": {
+                    "high_priority_ratio": high_priority_ratio,
+                    "avg_lead_score": avg_lead_score,
+                    "useful_lead_count": useful_lead_count,
+                },
             },
             "platform_breakdown": platform_results,
             "token_metrics": {
@@ -347,9 +474,10 @@ class BenchmarkRunner:
 
         print("=" * 80)
         print(f"✅ BENCHMARK HOÀN TẤT TRONG {total_duration}s")
-        print(f"  → Tổng sự kiện thô: {total_raw} | Trùng: {total_raw - total_dedup} | Chất lượng: {total_scored}")
-        print(f"  → Token tiêu thụ: {total_tokens_consumed:,} | Lãng phí: {total_wasted_tokens:,} ({waste_percentage}%)")
-        print(f"  → Chi phí Token / Lead chất lượng: {tokens_per_lead:,} tokens")
+        print(f"  → G-Eval Judge Score: {avg_g_eval}/100 | NDCG@5: {ndcg_5_judge}")
+        print(f"  → Live Precision: {live_precision_overall}% | Completeness: {overall_completeness}%")
+        print(f"  → Precision@5: {p_at_5}% | MRR: {mrr} | Spam Leakage: {spam_leakage_rate}%")
+        print(f"  → Token tiêu thụ: {total_tokens_consumed:,} | Hiệu quả: {efficiency_percentage}%")
         print(f"  → File báo cáo: {report_path}")
         print("=" * 80)
 

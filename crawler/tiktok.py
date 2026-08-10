@@ -84,7 +84,14 @@ def crawl_tiktok_live(keywords: list, limit: int = 20, use_headless: bool = True
             page = context.pages[0] if context.pages else context.new_page()
             payloads = []
 
-            page.on("response", lambda r: payloads.append(r.json()) if "/api/search/" in r.url else None)
+            def _on_response(r):
+                if "/api/search/" in r.url:
+                    try:
+                        payloads.append(r.json())
+                    except Exception:
+                        pass
+
+            page.on("response", _on_response)
 
             for keyword in keywords[:MAX_KEYWORDS]:
                 if len(events) >= limit:

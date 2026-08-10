@@ -337,13 +337,14 @@ def crawl_livestreams_with_ai(
             # real (logged-in) browser regardless of the global flag.
             crawler_opts = {}
             if platform_name in ("x", "tiktok", "linkedin"):
-                # Always respect the caller's choice if provided, otherwise default to True
                 crawler_opts["use_headless"] = kwargs.get("use_headless", True)
             else:
                 crawler_opts["use_headless"] = kwargs.get("use_headless", False)
 
             if platform_name == "youtube":
-                crawler_opts["use_api"] = use_yt_api
+                crawler_opts["use_api"] = kwargs.get("use_youtube_api", False)
+                crawler_opts["mode"] = kwargs.get("youtube_mode", "all")
+                crawler_opts["use_headless"] = kwargs.get("use_headless", True)
 
             # Chọn bộ từ khóa phù hợp theo loại nền tảng
             active_queries = base_queries if platform_name in EVENT_ONLY_PLATFORMS else queries

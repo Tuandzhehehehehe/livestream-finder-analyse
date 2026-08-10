@@ -1,0 +1,59 @@
+{
+  "goal": "DevOps & Kubernetes Cloud Native",
+  "compiled_at": "2026-08-08T22:14:14",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "cloud computing",
+    "software development",
+    "IT operations",
+    "DevOps",
+    "containerization"
+  ],
+  "personas": [
+    "DevOps engineer",
+    "cloud architect",
+    "Kubernetes administrator",
+    "software developer",
+    "IT manager"
+  ],
+  "topics": [
+    "DevOps",
+    "Kubernetes",
+    "cloud native",
+    "containerization",
+    "microservices",
+    "CI/CD",
+    "continuous integration",
+    "continuous deployment",
+    "cloud computing",
+    "software development",
+    "IT operations"
+  ],
+  "search_queries": [
+    "Kubernetes live",
+    "DevOps livestream",
+    "cloud native stream",
+    "containerization online",
+    "microservices live",
+    "CI/CD livestream",
+    "DevOps online",
+    "Kubernetes stream",
+    "cloud native event",
+    "containerization live",
+    "DevOps conference",
+    "Kubernetes meetup",
+    "cloud native webinar"
+  ],
+  "positive_keywords": [
+    "DevOps",
+    "Kubernetes",
+    "cloud native",
+    "containerization",
+    "microservices",
+    "CI/CD",
+    "cloud computing",
+    "software development",
+    "IT operations"
+  ],
+  "negative_keywords": []
+}

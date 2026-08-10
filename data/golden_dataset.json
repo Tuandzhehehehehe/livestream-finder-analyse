@@ -1,0 +1,161 @@
+  {
+    "id": "GOLDEN_000",
+    "goal": "Charity & Non-profit Fundraising",
+    "category": "Non-profit & Philanthropy",
+    "difficulty": "medium",
+    "expected_topics": ["donor engagement", "fundraising webinar", "ngo leadership", "charity gala", "philanthropy"],
+    "positive_keywords": ["charity", "nonprofit", "non-profit", "fundraising", "ngo", "donor", "philanthropy", "volunteer"],
+    "negative_keywords": ["adopt me pet giveaway", "free robux", "fortnite vbucks", "crypto pump", "free gift card"],
+    "description": "Evaluate agent on identifying genuine charity fundraising webinars and NGO leadership panels vs scam giveaways."
+  },
+  {
+    "id": "GOLDEN_001",
+    "goal": "AI in HR & Talent Acquisition",
+    "category": "Human Resources",
+    "difficulty": "medium",
+    "expected_topics": ["recruitment automation", "ai hiring", "talent sourcing", "hr technology", "applicant tracking"],
+    "positive_keywords": ["hr", "recruitment", "talent", "hiring", "workforce", "people ops"],
+    "negative_keywords": ["roblox", "giveaway", "free robux", "gaming", "vbucks", "crypto pump"],
+    "description": "Evaluate agent on identifying webinar and events focusing on generative AI applications in HR, talent acquisition, and workforce management."
+  },
+  {
+    "id": "GOLDEN_002",
+    "goal": "B2B SaaS Founder & Seed Funding",
+    "category": "Venture Capital & SaaS",
+    "difficulty": "medium",
+    "expected_topics": ["saas scaling", "venture capital", "seed round", "pitch deck", "arr growth"],
+    "positive_keywords": ["saas", "founder", "startup", "venture", "seed", "fundraising", "arr"],
+    "negative_keywords": ["minecraft", "fortnite", "free skins", "tiktok dance", "giftcard"],
+    "description": "Evaluate agent on discovering founder-focused webinars about B2B SaaS scaling, unit economics, and seed-stage venture fundraising."
+  },
+  {
+    "id": "GOLDEN_003",
+    "goal": "Fintech & Open Banking API",
+    "category": "Financial Technology",
+    "difficulty": "hard",
+    "expected_topics": ["open banking", "payment gateways", "embedded finance", "banking api", "iso 20022"],
+    "positive_keywords": ["fintech", "banking", "payments", "open banking", "embedded finance", "pci dss"],
+    "negative_keywords": ["free crypto signal", "100x gem", "airdrop telegram", "pump and dump"],
+    "description": "Evaluate agent on filtering professional financial technology webinars vs retail crypto airdrop scams."
+  },
+  {
+    "id": "GOLDEN_004",
+    "goal": "DevOps & Kubernetes Cloud Native",
+    "category": "Software Engineering",
+    "difficulty": "easy",
+    "expected_topics": ["kubernetes", "ci/cd", "infrastructure as code", "terraform", "cloud native"],
+    "positive_keywords": ["devops", "k8s", "kubernetes", "cloud", "docker", "ci/cd", "platform engineering"],
+    "negative_keywords": ["roblox server host", "free vps", "game cracked", "discord bot hack"],
+    "description": "Evaluate agent on capturing technical platform engineering and Kubernetes workshops."
+  },
+  {
+    "id": "GOLDEN_005",
+    "goal": "Cybersecurity Zero Trust Architecture",
+    "category": "Security",
+    "difficulty": "hard",
+    "expected_topics": ["zero trust", "soc 2", "identity access management", "cloud security", "threat detection"],
+    "positive_keywords": ["cybersecurity", "infosec", "zero trust", "ciso", "iam", "endpoint security"],
+    "negative_keywords": ["free wifi hack", "wifi password live", "crack tool", "ddos generator"],
+    "description": "Evaluate agent on identifying enterprise security summits and CISO leadership sessions."
+  },
+  {
+    "id": "GOLDEN_006",
+    "goal": "Healthcare Tech & Telemedicine Compliance",
+    "category": "Healthcare & MedTech",
+    "difficulty": "medium",
+    "expected_topics": ["telehealth", "hipaa compliance", "digital health", "ehr integration", "medical ai"],
+    "positive_keywords": ["healthcare", "medtech", "telemedicine", "digital health", "hipaa", "clinical"],
+    "negative_keywords": ["weight loss pill", "magic cure live", "tiktok tarot", "free crystals"],
+    "description": "Evaluate agent on discovering clinical healthcare technology and digital medicine webinars."
+  },
+  {
+    "id": "GOLDEN_007",
+    "goal": "E-commerce Omnichannel & Supply Chain",
+    "category": "Retail & Logistics",
+    "difficulty": "easy",
+    "expected_topics": ["omnichannel retail", "shopify plus", "warehouse automation", "inventory management"],
+    "positive_keywords": ["ecommerce", "retail", "omnichannel", "supply chain", "logistics", "dtc"],
+    "negative_keywords": ["free temu gift card", "amazon glitch code", "shein hack live"],
+    "description": "Evaluate agent on identifying B2B e-commerce operations, Shopify scaling, and logistics talks."
+  },
+  {
+    "id": "GOLDEN_008",
+    "goal": "Real-World Asset Tokenization on Blockchain",
+    "category": "Web3 & Institutional Crypto",
+    "difficulty": "hard",
+    "expected_topics": ["rwa tokenization", "institutional blockchain", "asset-backed security", "smart contracts"],
+    "positive_keywords": ["tokenization", "rwa", "institutional", "blockchain", "asset management", "capital markets"],
+    "negative_keywords": ["crypto moonshot", "1000x telegram", "free btc giveaway", "elon musk crypto live"],
+    "description": "Evaluate agent on differentiating legitimate institutional RWA discussions from crypto giveaway spam."
+  },
+  {
+    "id": "GOLDEN_009",
+    "goal": "Data Engineering with dbt and Snowflake",
+    "category": "Data & Analytics",
+    "difficulty": "easy",
+    "expected_topics": ["dbt core", "snowflake warehouse", "data mesh", "lakehouse", "etl pipeline"],
+    "positive_keywords": ["data engineering", "dbt", "snowflake", "bigquery", "data pipeline", "analytics"],
+    "negative_keywords": ["free data entry job", "typing job 2026", "earn 100 usd daily"],
+    "description": "Evaluate agent on finding hands-on technical analytics engineering and data pipeline streams."
+  },
+  {
+    "id": "GOLDEN_010",
+    "goal": "Enterprise LLM Deployment & RAG Architecture",
+    "category": "Artificial Intelligence",
+    "difficulty": "medium",
+    "expected_topics": ["retrieval augmented generation", "vector database", "fine tuning", "langchain", "llmops"],
+    "positive_keywords": ["llm", "rag", "genai", "vector database", "enterprise ai", "prompt engineering"],
+    "negative_keywords": ["ai generate free money", "chatgpt auto affiliate", "lazy cash ai"],
+    "description": "Evaluate agent on selecting high-level enterprise AI deployment webinars vs clickbait affiliate videos."
+  },
+  {
+    "id": "GOLDEN_011",
+    "goal": "B2B Product Management & PLG Strategy",
+    "category": "Product Leadership",
+    "difficulty": "medium",
+    "expected_topics": ["product led growth", "churn reduction", "onboarding funnel", "user telemetry"],
+    "positive_keywords": ["product management", "plg", "product led", "cpo", "retention", "user onboarding"],
+    "negative_keywords": ["tiktok tricks", "growth hack followers", "buy instagram likes"],
+    "description": "Evaluate agent on finding product management summits and B2B SaaS retention workshops."
+  },
+  {
+    "id": "GOLDEN_012",
+    "goal": "Clean Energy & ClimateTech Investment Summit",
+    "category": "Sustainability & Energy",
+    "difficulty": "medium",
+    "expected_topics": ["esg reporting", "renewable energy", "carbon credits", "green hydrogen", "climatetech vc"],
+    "positive_keywords": ["climatetech", "clean energy", "renewable", "esg", "sustainability", "carbon"],
+    "negative_keywords": ["free solar scam", "electricity hack 2026", "energy generator hoax"],
+    "description": "Evaluate agent on capturing sustainability summits, renewable energy panels, and climate finance."
+  },
+  {
+    "id": "GOLDEN_013",
+    "goal": "EdTech & Corporate Learning LMS Platforms",
+    "category": "Education Technology",
+    "difficulty": "easy",
+    "expected_topics": ["learning management system", "microlearning", "corporate training", "instructional design"],
+    "positive_keywords": ["edtech", "lms", "e-learning", "corporate training", "upskilling", "higher education"],
+    "negative_keywords": ["homework answers live", "cheat exam 2026", "free school wifi"],
+    "description": "Evaluate agent on identifying corporate upskilling, university digital learning, and EdTech webinars."
+  },
+  {
+    "id": "GOLDEN_014",
+    "goal": "LegalTech Contract Automation & Compliance",
+    "category": "Legal & Governance",
+    "difficulty": "hard",
+    "expected_topics": ["contract lifecycle management", "clm", "legal ai", "gdpr compliance", "intellectual property"],
+    "positive_keywords": ["legaltech", "contract automation", "compliance", "general counsel", "ip law", "clm"],
+    "negative_keywords": ["free legal divorce live", "sue police hack", "court prank"],
+    "description": "Evaluate agent on finding legal operations summits, CLM software demos, and corporate governance talks."
+  },
+  {
+    "id": "GOLDEN_015",
+    "goal": "Customer Success & Retention in SaaS",
+    "category": "Customer Success",
+    "difficulty": "medium",
+    "expected_topics": ["net revenue retention", "nrr", "customer health score", "qbr", "client onboarding"],
+    "positive_keywords": ["customer success", "csm", "retention", "nrr", "churn", "client relations"],
+    "negative_keywords": ["customer service prank", "calling angry customer", "prank call live"],
+    "description": "Evaluate agent on discovering Customer Success leadership panels, NRR expansion strategies, and CSM webinars."
+  }
+]

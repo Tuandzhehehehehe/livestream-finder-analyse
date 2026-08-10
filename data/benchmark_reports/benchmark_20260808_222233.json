@@ -1,0 +1,220 @@
+{
+  "timestamp": "2026-08-08T15:22:33.104334+00:00",
+  "goal": "Charity & Non-profit Fundraising",
+  "duration_seconds": 54.59,
+  "compile_time_seconds": 0.0,
+  "platforms": [
+    "youtube",
+    "meetup",
+    "web",
+    "linkedin",
+    "x",
+    "tiktok"
+  ],
+  "overall_metrics": {
+    "total_raw_events": 7,
+    "total_dedup_events": 7,
+    "total_relevance_passed": 4,
+    "total_high_priority": 4,
+    "total_medium_priority": 0,
+    "useful_leads_saved": 4,
+    "overall_dedup_rate": 0.0
+  },
+  "third_party_judge": {
+    "g_eval_score": 17.5,
+    "ndcg_at_5": 1.0,
+    "items_evaluated": 4,
+    "evaluated_items": [
+      {
+        "rank": 1,
+        "title": "Elliott Scholar Jose Aguilar's Charity Concert to Benefit the HOPe Foundation in Salta, Argentina",
+        "url": "https://youtube.com/watch?v=_Z4Met2W72o",
+        "channel_name": "Roberta Buffett Institute for Global Affairs",
+        "status": "LIVE",
+        "viewers": "32 watching",
+        "judge_score": 70.0,
+        "is_relevant": true,
+        "is_spam": false,
+        "critique": "The event is highly relevant to charity and non-profit fundraising, but lacks clear indicators of professional networking or significant business value for decision-makers.",
+        "judge_model": "groq/llama-3.3-70b-versatile"
+      },
+      {
+        "rank": 2,
+        "title": "Founders Running Club :: Ho Chi Minh City",
+        "url": "https://www.meetup.com/founders-running-club-ho-chi-minh-city/events/315761105/",
+        "channel_name": "",
+        "status": "UPCOMING",
+        "viewers": "",
+        "judge_score": 0.0,
+        "is_relevant": false,
+        "is_spam": false,
+        "critique": "The discovered event is unrelated to charity and non-profit fundraising, instead appearing to be a social running club for founders.",
+        "judge_model": "groq/llama-3.3-70b-versatile"
+      },
+      {
+        "rank": 3,
+        "title": "Racism & Privilege",
+        "url": "https://www.meetup.com/meaningfuldiscussions-ho-chi-minh/events/315281100/",
+        "channel_name": "",
+        "status": "UPCOMING",
+        "viewers": "",
+        "judge_score": 0.0,
+        "is_relevant": false,
+        "is_spam": false,
+        "critique": "The discovered event is not relevant to the target search goal of charity and non-profit fundraising, as it discusses racism and privilege without any apparent connection to fundraising.",
+        "judge_model": "groq/llama-3.3-70b-versatile"
+      },
+      {
+        "rank": 4,
+        "title": "Event Promotion [low-cost events promotion, local events ...",
+        "url": "https://youtube.com/watch?v=bqa2BO3oDF8",
+        "channel_name": "",
+        "status": "UPCOMING",
+        "viewers": "",
+        "judge_score": 0.0,
+        "is_relevant": false,
+        "is_spam": true,
+        "critique": "The discovered event lacks specific relevance to charity and non-profit fundraising, appearing to be a generic event promotion with no clear connection to the target search goal.",
+        "judge_model": "groq/llama-3.3-70b-versatile"
+      }
+    ]
+  },
+  "evaluation_metrics": {
+    "pillar_1_scraper_performance": {
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 85.7,
+      "throughput_items_per_sec": 0.13,
+      "avg_latency_per_item_sec": 7.8
+    },
+    "pillar_2_relevance_quality": {
+      "precision_at_5": 100.0,
+      "precision_at_10": 100.0,
+      "spam_leakage_rate": 0.0,
+      "mean_reciprocal_rank": 1.0,
+      "status_accuracy_rate": 100.0
+    },
+    "pillar_3_token_economy": {
+      "total_tokens_consumed": 0,
+      "useful_tokens": 0,
+      "wasted_tokens": 0,
+      "token_efficiency_percentage": 100.0,
+      "token_waste_percentage": 0.0,
+      "tokens_per_qualified_lead": 0.0,
+      "cost_estimate_usd": 0.0
+    },
+    "pillar_4_lead_actionability": {
+      "high_priority_ratio": 100.0,
+      "avg_lead_score": 51.5,
+      "useful_lead_count": 4
+    }
+  },
+  "platform_breakdown": {
+    "youtube": {
+      "latency_seconds": 5.232,
+      "raw_count": 3,
+      "dedup_count": 3,
+      "valid_time_count": 3,
+      "scored_count": 1,
+      "avg_score": 60.0,
+      "high_priority_count": 1,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 100.0,
+      "throughput_items_per_sec": 0.57,
+      "error": null
+    },
+    "meetup": {
+      "latency_seconds": 2.338,
+      "raw_count": 3,
+      "dedup_count": 3,
+      "valid_time_count": 3,
+      "scored_count": 2,
+      "avg_score": 45.0,
+      "high_priority_count": 2,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 75.0,
+      "throughput_items_per_sec": 1.28,
+      "error": null
+    },
+    "web": {
+      "latency_seconds": 4.157,
+      "raw_count": 1,
+      "dedup_count": 1,
+      "valid_time_count": 1,
+      "scored_count": 1,
+      "avg_score": 56.0,
+      "high_priority_count": 1,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 100.0,
+      "field_completeness_rate": 75.0,
+      "throughput_items_per_sec": 0.24,
+      "error": null
+    },
+    "linkedin": {
+      "latency_seconds": 5.135,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 0.0,
+      "field_completeness_rate": 0.0,
+      "throughput_items_per_sec": 0.0,
+      "error": null
+    },
+    "x": {
+      "latency_seconds": 9.075,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 0.0,
+      "field_completeness_rate": 0.0,
+      "throughput_items_per_sec": 0.0,
+      "error": null
+    },
+    "tiktok": {
+      "latency_seconds": 12.996,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "live_precision_rate": 0.0,
+      "field_completeness_rate": 0.0,
+      "throughput_items_per_sec": 0.0,
+      "error": null
+    }
+  },
+  "token_metrics": {
+    "total_prompt_tokens": 0,
+    "total_candidate_tokens": 0,
+    "total_tokens_consumed": 0,
+    "useful_tokens": 0,
+    "wasted_tokens": 0,
+    "waste_breakdown": {
+      "low_relevance_waste": 0,
+      "duplicate_waste": 0,
+      "expired_time_waste": 0
+    },
+    "token_waste_percentage": 0.0,
+    "token_efficiency_percentage": 100.0,
+    "tokens_per_qualified_lead": 0.0,
+    "category_breakdown": {},
+    "model_breakdown": {}
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "goal": "Fintech & Open Banking API",
+  "compiled_at": "2026-08-08T22:13:59",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "fintech",
+    "banking",
+    "financial services",
+    "technology",
+    "api development"
+  ],
+  "personas": [
+    "fintech developer",
+    "banking professional",
+    "api specialist",
+    "financial analyst",
+    "software engineer"
+  ],
+  "topics": [
+    "fintech",
+    "open banking",
+    "api",
+    "financial technology",
+    "banking api",
+    "payment systems",
+    "financial services",
+    "digital banking",
+    "api integration",
+    "financial innovation",
+    "banking innovation",
+    "fintech innovation"
+  ],
+  "search_queries": [
+    "fintech live",
+    "open banking livestream",
+    "api stream",
+    "fintech online",
+    "banking api event",
+    "financial tech live",
+    "open banking online",
+    "fintech stream",
+    "api livestream",
+    "banking innovation live",
+    "fintech conference",
+    "open banking webinar",
+    "fintech event",
+    "banking api livestream",
+    "financial services live"
+  ],
+  "positive_keywords": [
+    "fintech",
+    "open banking",
+    "api",
+    "banking",
+    "financial services",
+    "financial technology",
+    "payment systems",
+    "digital banking",
+    "api integration",
+    "financial innovation"
+  ],
+  "negative_keywords": []
+}

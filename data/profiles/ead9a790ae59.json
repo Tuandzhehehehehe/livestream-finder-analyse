@@ -1,0 +1,60 @@
+{
+  "goal": "Data Engineering with dbt and Snowflake",
+  "compiled_at": "2026-08-08T22:15:26",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "Data Science",
+    "Cloud Computing",
+    "Software Engineering",
+    "IT",
+    "Data Analytics"
+  ],
+  "personas": [
+    "Data Engineer",
+    "Data Architect",
+    "Data Scientist",
+    "Cloud Engineer",
+    "IT Manager"
+  ],
+  "topics": [
+    "Data Engineering",
+    "dbt",
+    "Snowflake",
+    "Data Warehouse",
+    "Cloud Data",
+    "Data Integration",
+    "ETL",
+    "Data Pipelines",
+    "Data Management",
+    "Cloud Computing",
+    "Data Analytics"
+  ],
+  "search_queries": [
+    "dbt livestream",
+    "Snowflake live",
+    "Data Engineering online",
+    "Data Warehouse stream",
+    "Cloud Data event",
+    "Data Integration live",
+    "ETL livestream",
+    "Data Pipelines stream",
+    "Data Management online",
+    "Cloud Computing live",
+    "Data Analytics event",
+    "dbt stream",
+    "Snowflake online"
+  ],
+  "positive_keywords": [
+    "Data Engineering",
+    "dbt",
+    "Snowflake",
+    "Data Warehouse",
+    "Cloud Data",
+    "Data Integration",
+    "ETL",
+    "Data Pipelines",
+    "Data Management",
+    "Cloud Computing"
+  ],
+  "negative_keywords": []
+}

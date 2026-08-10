@@ -1,0 +1,62 @@
+{
+  "goal": "Cybersecurity Zero Trust Architecture",
+  "compiled_at": "2026-08-08T22:14:28",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "cybersecurity",
+    "information technology",
+    "network security",
+    "cloud computing",
+    "artificial intelligence"
+  ],
+  "personas": [
+    "security architect",
+    "cybersecurity engineer",
+    "IT manager",
+    "network administrator",
+    "compliance officer"
+  ],
+  "topics": [
+    "zero trust",
+    "cybersecurity",
+    "network security",
+    "cloud security",
+    "identity access management",
+    "threat detection",
+    "incident response",
+    "security architecture",
+    "compliance",
+    "risk management",
+    "authentication",
+    "authorization"
+  ],
+  "search_queries": [
+    "cybersecurity live",
+    "zero trust livestream",
+    "security architecture online",
+    "cloud security stream",
+    "network security event",
+    "threat detection live",
+    "incident response webinar",
+    "security compliance livestream",
+    "identity access management stream",
+    "cybersecurity online",
+    "zero trust webinar",
+    "security risk management live",
+    "authentication livestream",
+    "authorization online"
+  ],
+  "positive_keywords": [
+    "zero trust",
+    "cybersecurity",
+    "security architecture",
+    "network security",
+    "cloud security",
+    "identity access management",
+    "threat detection",
+    "incident response",
+    "compliance",
+    "risk management"
+  ],
+  "negative_keywords": []
+}

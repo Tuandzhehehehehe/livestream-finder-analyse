@@ -134,62 +134,239 @@ def render_sidebar():
 
 # ── Benchmark Tab ─────────────────────────────────────────────────────────
 def render_benchmark_tab():
-    st.header("⚡ Crawler Performance & Token Waste Benchmark")
-    st.caption("Đánh giá độ trễ, sản lượng và lượng Token lãng phí theo nền tảng.")
+    st.header("⚡ Agent Evaluation & Benchmark Center")
+    st.caption("Khung đánh giá toàn diện năng lực Agent: 4 Trụ Cột Kỹ Thuật + Hội Đồng Giám Khảo AI Độc Lập (G-Eval / NDCG).")
 
-    c1, c2 = st.columns([2, 1])
-    bm_goal = c1.text_input("Mục tiêu Benchmark", value="AI in HR", key="bm_goal")
-    bm_limit = c2.number_input("Số lượng / platform", min_value=1, max_value=50, value=10, key="bm_limit")
+    tab_custom, tab_golden, tab_hf = st.tabs([
+        "🎯 Đánh Giá Mục Tiêu Cụ Thể (Custom Goal)",
+        "🏛️ Khảo Sát Bộ Đề Chuẩn (Golden Dataset)",
+        "🤗 So Sánh Chuẩn Hugging Face (BEIR & MS MARCO)"
+    ])
 
-    bm_opts = ["youtube", "meetup", "web", "linkedin", "x", "tiktok"] + (["eventbrite"] if crawl_eventbrite else [])
-    bm_platforms = st.multiselect("Nền tảng benchmark", bm_opts, default=bm_opts, key="bm_platforms")
+    # ── SUB-TAB 1: CUSTOM GOAL BENCHMARK ──────────────────────────────────────
+    with tab_custom:
+        st.markdown("#### 🎯 Đánh Giá Hiệu Năng Agent Cho Mục Tiêu Bạn Chọn")
+        st.caption("Nhập bất kỳ chủ đề nào (ví dụ: *'Charity & Non-Profit'*, *'AI in HR'*, *'Fintech'*) để cào dữ liệu thực tế và chấm điểm qua 4 trụ cột + Giám khảo AI.")
 
-    o1, o2, o3 = st.columns(3)
-    bm_classify = o1.checkbox("Classify AI", value=True, key="bm_classify")
-    bm_comment = o2.checkbox("Comment AI", value=True, key="bm_comment")
-    bm_cache = o3.checkbox("Dùng Cache", value=False, key="bm_cache")
+        c1, c2 = st.columns([2, 1])
+        bm_goal = c1.text_input("Mục tiêu Benchmark", value="Charity & Non-profit Fundraising", key="bm_goal_custom")
+        bm_limit = c2.number_input("Số lượng / platform", min_value=1, max_value=50, value=10, key="bm_limit_custom")
 
-    if st.button("🚀 Bắt đầu Benchmark", type="primary", use_container_width=True, key="run_bm"):
-        with st.spinner("⚡ Đang tính toán chỉ số Benchmark..."):
-            try:
-                from services.benchmarker import BenchmarkRunner
-                runner = BenchmarkRunner(
-                    goal=bm_goal, platforms=bm_platforms or None, limit=bm_limit,
-                    use_ai_classify=bm_classify, use_ai_comment=bm_comment, use_cache=bm_cache,
-                )
-                report = runner.run()
-                st.session_state["last_benchmark_report"] = report
-                st.success("✅ Hoàn tất Benchmark!")
-            except Exception as e:
-                st.error(f"Lỗi Benchmark: {e}")
+        bm_opts = ["youtube", "meetup", "web", "linkedin", "x", "tiktok"] + (["eventbrite"] if crawl_eventbrite else [])
+        bm_platforms = st.multiselect("Nền tảng benchmark", bm_opts, default=["youtube"] if "youtube" in bm_opts else bm_opts, key="bm_platforms_custom")
 
-    report = st.session_state.get("last_benchmark_report")
-    if report:
-        st.write("---")
-        st.subheader("📊 Kết quả Benchmark Gần Nhất")
-        om, tm = report.get("overall_metrics", {}), report.get("token_metrics", {})
+        o1, o2, o3 = st.columns(3)
+        bm_classify = o1.checkbox("Classify AI", value=True, key="bm_classify_custom")
+        bm_comment = o2.checkbox("Comment AI", value=True, key="bm_comment_custom")
+        bm_cache = o3.checkbox("Dùng Cache", value=False, key="bm_cache_custom")
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Thời gian", f"{report.get('duration_seconds', 0)}s")
-        m2.metric("Leads chất lượng", f"{om.get('useful_leads_saved', 0)}")
-        m3.metric("Tổng Token", f"{tm.get('total_tokens_consumed', 0):,}")
-        m4.metric("Lãng phí Token", f"{tm.get('token_waste_percentage', 0)}%", delta=f"-{tm.get('wasted_tokens', 0):,} tokens", delta_color="inverse")
+        if st.button("🚀 Bắt Đầu Đánh Giá Mục Tiêu Này", type="primary", use_container_width=True, key="run_bm_custom"):
+            if not bm_goal.strip():
+                st.warning("Vui lòng nhập mục tiêu cần đánh giá.")
+            else:
+                with st.spinner(f"⚡ Đang cào dữ liệu và chấm điểm cho mục tiêu '{bm_goal}'..."):
+                    try:
+                        from services.benchmarker import BenchmarkRunner
+                        runner = BenchmarkRunner(
+                            goal=bm_goal, platforms=bm_platforms or None, limit=bm_limit,
+                            use_ai_classify=bm_classify, use_ai_comment=bm_comment, use_cache=bm_cache,
+                        )
+                        report = runner.run()
+                        st.session_state["last_benchmark_report"] = report
+                        st.success(f"✅ Đã hoàn tất đánh giá mục tiêu '{bm_goal}'!")
+                    except Exception as e:
+                        st.error(f"Lỗi Benchmark: {e}")
 
-        pb = report.get("platform_breakdown", {})
-        if pb:
-            df_pb = pd.DataFrame.from_dict(pb, orient="index").reset_index().rename(columns={
-                "index": "Nền tảng", "latency_seconds": "Độ trễ (s)", "raw_count": "Sự kiện thô",
-                "dedup_count": "Sau Dedup", "scored_count": "Đạt Điểm", "avg_score": "Điểm TB", "throughput_items_per_sec": "Tốc độ (sps)"
-            })
-            st.dataframe(df_pb[["Nền tảng", "Độ trễ (s)", "Sự kiện thô", "Sau Dedup", "Đạt Điểm", "Điểm TB", "Tốc độ (sps)"]], use_container_width=True)
-            st.bar_chart(df_pb.set_index("Nền tảng")[["Độ trễ (s)"]])
+        report = st.session_state.get("last_benchmark_report")
+        if report and report.get("goal"):
+            st.write("---")
+            st.subheader(f"📊 Kết Quả Đánh Giá Mục Tiêu: '{report.get('goal')}'")
 
-        wb = tm.get("waste_breakdown", {})
-        if wb:
-            w1, w2, w3 = st.columns(3)
-            w1.metric("Lãng phí Score < 20", f"{wb.get('low_relevance_waste', 0):,} tokens")
-            w2.metric("Lãng phí Trùng DB", f"{wb.get('duplicate_waste', 0):,} tokens")
-            w3.metric("Lãng phí Sự kiện cũ", f"{wb.get('expired_time_waste', 0):,} tokens")
+            # Third-Party Judge Score Banner
+            tp_judge = report.get("third_party_judge", {})
+            if tp_judge:
+                j_score = tp_judge.get("g_eval_score", 0)
+                j_ndcg = tp_judge.get("ndcg_at_5", 0)
+                st.markdown("#### 🏛️ Điểm Số Từ Hội Đồng Giám Khảo Độc Lập (LLM-as-a-Judge)")
+                col_j1, col_j2 = st.columns(2)
+                col_j1.metric("G-Eval Judge Score", f"{j_score} / 100", help="Điểm chất lượng & độ đúng ngành do Giám khảo AI độc lập chấm")
+                col_j2.metric("NDCG@5 (Chuẩn Tìm Kiếm)", f"{j_ndcg} / 1.000", help="Độ chuẩn xác khi xếp các livestream tốt nhất lên Top 5")
+
+            em = report.get("evaluation_metrics", {})
+            p1 = em.get("pillar_1_scraper_performance", {})
+            p2 = em.get("pillar_2_relevance_quality", {})
+            p3 = em.get("pillar_3_token_economy", {})
+            p4 = em.get("pillar_4_lead_actionability", {})
+
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                st.markdown("##### 1️⃣ Hiệu Năng Scraper (Playwright)")
+                k1, k2 = st.columns(2)
+                k1.metric("Live Precision", f"{p1.get('live_precision_rate', 0)}%", help="Tỷ lệ livestream thực tế (không bị lẫn video tĩnh)")
+                k2.metric("Độ Đầy Đủ Dữ Liệu", f"{p1.get('field_completeness_rate', 0)}%", help="Tỷ lệ các trường Title, Channel, Status không bị null")
+                k3, k4 = st.columns(2)
+                k3.metric("Tốc độ bóc tách", f"{p1.get('throughput_items_per_sec', 0)} sps")
+                k4.metric("Độ trễ trung bình", f"{p1.get('avg_latency_per_item_sec', 0)}s / item")
+
+            with col_p2:
+                st.markdown("##### 2️⃣ Chất Lượng Phù Hợp & AI (Relevance)")
+                k5, k6 = st.columns(2)
+                k5.metric("Precision@5", f"{p2.get('precision_at_5', 0)}%")
+                k6.metric("Spam Leakage", f"{p2.get('spam_leakage_rate', 0)}%", delta=f"{p2.get('spam_leakage_rate', 0)}%", delta_color="inverse")
+                k7, k8 = st.columns(2)
+                k7.metric("MRR (Best Match Rank)", f"{p2.get('mean_reciprocal_rank', 0)}")
+                k8.metric("Độ Đúng Trạng Thái", f"{p2.get('status_accuracy_rate', 0)}%")
+
+            col_p3, col_p4 = st.columns(2)
+            with col_p3:
+                st.markdown("##### 3️⃣ Kinh Tế Token & Tiết Kiệm")
+                k9, k10 = st.columns(2)
+                k9.metric("Hiệu Quả Token", f"{p3.get('token_efficiency_percentage', 0)}%")
+                k10.metric("Lãng Phí Token", f"{p3.get('token_waste_percentage', 0)}%", delta=f"-{p3.get('wasted_tokens', 0):,} tokens", delta_color="inverse")
+
+            with col_p4:
+                st.markdown("##### 4️⃣ Tính Hành Động Của Lead")
+                k13, k14 = st.columns(2)
+                k13.metric("Tỷ Lệ Lead Ưu Tiên Cao", f"{p4.get('high_priority_ratio', 0)}%")
+                k14.metric("Điểm Tiềm Năng TB", f"{p4.get('avg_lead_score', 0)} / 100")
+
+            # Bảng chi tiết từng video kèm nhận xét của Giám khảo AI
+            eval_items = tp_judge.get("evaluated_items", [])
+            if eval_items:
+                st.write("---")
+                st.markdown(f"#### 🔍 Chi Tiết Từng Video Tìm Được & Nhận Xét Giám Khảo Cho: '{report.get('goal')}'")
+                df_ev_items = pd.DataFrame([{
+                    "Hạng": it.get("rank", 0),
+                    "Tiêu đề video": it.get("title", ""),
+                    "Kênh": it.get("channel_name", ""),
+                    "Trạng thái": it.get("status", ""),
+                    "Điểm Giám Khảo": f"{it.get('judge_score', 0)}/100",
+                    "Đúng Ngành?": "✅ Đúng" if it.get("is_relevant") else "❌ Sai",
+                    "Là Spam?": "🚨 Rác/Scam" if it.get("is_spam") else "✨ An toàn",
+                    "Giám khảo nhận xét": it.get("critique", ""),
+                } for it in eval_items])
+                st.dataframe(df_ev_items, use_container_width=True)
+
+    # ── SUB-TAB 2: GOLDEN BENCHMARK SUITE (15 NGÀNH) ─────────────────────────
+    with tab_golden:
+        st.markdown("#### 🏛️ Sát Hạch Bộ Đề Chuẩn Quốc Tế (Golden Benchmark Suite)")
+        st.caption("Khảo sát toàn diện năng lực của Agent trên 15 bộ đề thi chuẩn đa ngành (B2B SaaS, AI, Fintech, Charity, DevOps, Cybersecurity, v.v.) theo chuẩn BEIR/GAIA.")
+
+        gc1, gc2 = st.columns([2, 1])
+        num_golden = gc1.slider("Số lượng bài test trong Golden Dataset", min_value=1, max_value=15, value=5, key="num_golden_slider")
+        use_judge_llm = gc2.checkbox("Bật LLM-as-a-Judge (Chấm điểm mù)", value=True, key="use_judge_llm_cb")
+
+        if st.button("🏛️ Bắt Đầu Thi Sát Hạch Toàn Diện", type="secondary", use_container_width=True, key="run_golden_btn"):
+            with st.spinner("🏛️ Ban giám khảo AI đang chấm điểm độc lập trên bộ đề Golden Dataset..."):
+                try:
+                    from services.golden_evaluator import GoldenDatasetEvaluator
+                    g_evaluator = GoldenDatasetEvaluator(
+                        max_test_cases=int(num_golden),
+                        items_per_query=5,
+                        use_llm_judge=use_judge_llm,
+                    )
+                    g_report = g_evaluator.run_evaluation()
+                    st.session_state["last_golden_report"] = g_report
+                    st.success("✅ Hoàn tất bài thi sát hạch trên Golden Dataset!")
+                except Exception as ge_err:
+                    st.error(f"Lỗi Golden Evaluation: {ge_err}")
+
+        g_rep = st.session_state.get("last_golden_report")
+        if g_rep:
+            ob = g_rep.get("overall_benchmarks", {})
+            st.markdown("#### 🏆 Bảng Điểm Chuẩn Quốc Tế Của Toàn Bộ Bài Thi")
+
+            j1, j2, j3, j4 = st.columns(4)
+            j1.metric("G-Eval Score", f"{ob.get('g_eval_judge_score', 0)} / 100", help="Điểm trung bình theo tiêu chí G-Eval từ ban giám khảo độc lập")
+            j2.metric("NDCG@5 (Chuẩn Search)", f"{ob.get('ndcg_at_5', 0)} / 1.000", help="Độ chuẩn xác khi xếp kết quả tốt nhất lên đầu")
+            j3.metric("MRR", f"{ob.get('mrr_mean_reciprocal_rank', 0)}", help="Vị trí trung bình của kết quả đúng đầu tiên")
+            j4.metric("MAP", f"{ob.get('map_mean_average_precision', 0)}", help="Độ chính xác trung bình toàn bộ bài test")
+
+            t_breakdown = g_rep.get("test_case_breakdown", [])
+            if t_breakdown:
+                st.markdown("#### 📋 Chi tiết kết quả từng bài test trong đề thi")
+                df_tests = pd.DataFrame([{
+                    "Mã bài test": tb.get("test_id", ""),
+                    "Mục tiêu (Goal)": tb.get("goal", ""),
+                    "Lĩnh vực": tb.get("category", ""),
+                    "NDCG@5": tb.get("ndcg_at_5", 0),
+                    "MRR": tb.get("mrr", 0),
+                    "Thời gian (s)": tb.get("latency_seconds", 0),
+                    "Số kết quả": tb.get("items_retrieved", 0),
+                } for tb in t_breakdown])
+                st.dataframe(df_tests, use_container_width=True)
+
+    # ── SUB-TAB 3: HUGGING FACE UNIVERSAL BENCHMARK ──────────────────────────
+    with tab_hf:
+        st.markdown("#### 🤗 Đánh Giá Trực Tiếp Trên Dataset Chuẩn Của Hugging Face")
+        st.caption("Kết nối trực tiếp với Hugging Face Hub (BEIR / MS MARCO) để so sánh Agent của bạn với các mô hình tìm kiếm chuẩn quốc tế.")
+
+        hf_col1, hf_col2 = st.columns([2, 1])
+        hf_dataset_choice = hf_col1.selectbox(
+            "Chọn Dataset chuẩn trên Hugging Face Hub",
+            [
+                "BeIR/fiqa (Finance & FinTech Search Benchmark)",
+                "BeIR/scifact (AI & Science Claims Search Benchmark)",
+                "BeIR/trec-covid (Healthcare & Medical Search Benchmark)",
+                "microsoft/ms_marco (Microsoft Universal Web Search Benchmark)",
+                "BeIR/quora (Semantic Search & Duplicate Retrieval)",
+            ],
+            index=0,
+            key="hf_ds_choice",
+        )
+        hf_dataset_key = hf_dataset_choice.split(" ")[0]
+        hf_query_limit = hf_col2.number_input("Số lượng queries kiểm thử", min_value=1, max_value=20, value=3, key="hf_q_limit")
+
+        if st.button("🤗 Tải Dataset Từ Hugging Face & Chấm Điểm So Sánh Trực Tiếp", type="primary", use_container_width=True, key="run_hf_btn"):
+            with st.spinner(f"🤗 Đang kết nối Hugging Face Hub ({hf_dataset_key}) và chấm điểm so sánh..."):
+                try:
+                    from services.huggingface_evaluator import HuggingFaceBenchmarkEvaluator
+                    hf_eval = HuggingFaceBenchmarkEvaluator(
+                        dataset_name=hf_dataset_key,
+                        max_queries=int(hf_query_limit),
+                    )
+                    hf_report = hf_eval.evaluate_agent_against_hf_benchmark()
+                    st.session_state["last_hf_report"] = hf_report
+                    st.success(f"✅ Đã hoàn tất đánh giá trên dataset Hugging Face: {hf_dataset_key}!")
+                except Exception as hf_err:
+                    st.error(f"Lỗi Hugging Face Benchmark: {hf_err}")
+
+        hf_rep = st.session_state.get("last_hf_report")
+        if hf_rep:
+            st.write("---")
+            st.markdown(f"### 🏆 Bảng So Sánh Agent Của Bạn vs Các Chuẩn Quốc Tế ({hf_rep.get('dataset_name')})")
+
+            am = hf_rep.get("agent_metrics", {})
+            c_h1, c_h2, c_h3, c_h4 = st.columns(4)
+            c_h1.metric("NDCG@10 (Agent của bạn)", f"{am.get('ndcg_at_10', 0)} / 1.000")
+            c_h2.metric("So với BM25 Baseline", f"+{am.get('improvement_vs_bm25_pct', 0)}%", delta=f"+{am.get('improvement_vs_bm25_pct', 0)}%", help="Tỷ lệ vượt trội so với chuẩn tìm kiếm BM25 truyền thống")
+            c_h3.metric("MRR@10", f"{am.get('mrr_at_10', 0)}")
+            c_h4.metric("MAP@10", f"{am.get('map_at_10', 0)}")
+
+            # Bảng so sánh trực tiếp
+            ub = hf_rep.get("universal_baseline_comparison", {})
+            if ub:
+                st.markdown("#### 📊 Bảng So Sánh Các Mô Hình & Phương Pháp:")
+                df_compare = pd.DataFrame([{
+                    "Phương pháp / Mô hình": k.replace("_", " "),
+                    "Điểm NDCG@10": v.get("ndcg_at_10", 0),
+                    "Nguồn / Chuẩn đối chiếu": v.get("source", ""),
+                } for k, v in ub.items()])
+                st.dataframe(df_compare, use_container_width=True)
+                st.bar_chart(df_compare.set_index("Phương pháp / Mô hình")[["Điểm NDCG@10"]])
+
+            q_breakdown = hf_rep.get("query_breakdown", [])
+            if q_breakdown:
+                st.markdown("#### 📋 Chi tiết từng bài test trên Hugging Face:")
+                df_q = pd.DataFrame([{
+                    "Mã Query": qb.get("query_id", ""),
+                    "Câu hỏi / Mục tiêu": qb.get("query", ""),
+                    "NDCG@10": qb.get("ndcg_at_10", 0),
+                    "MRR@10": qb.get("mrr_at_10", 0),
+                    "Kết quả Top 1 chính xác?": "✅ Đúng" if qb.get("top_1_is_relevant") else "❌ Sai",
+                    "Văn bản Top 1 tìm được": qb.get("top_1_text", ""),
+                } for qb in q_breakdown])
+                st.dataframe(df_q, use_container_width=True)
 
     st.write("---")
     st.subheader("📜 Báo cáo Benchmark đã lưu")
@@ -202,6 +379,8 @@ def render_benchmark_tab():
                 "Thời gian": r.get("timestamp", "")[:19].replace("T", " "),
                 "Goal": r.get("goal", ""),
                 "Thời gian (s)": r.get("duration_seconds", 0),
+                "Live Precision (%)": r.get("evaluation_metrics", {}).get("pillar_1_scraper_performance", {}).get("live_precision_rate", 100.0),
+                "Precision@5 (%)": r.get("evaluation_metrics", {}).get("pillar_2_relevance_quality", {}).get("precision_at_5", 100.0),
                 "Tổng Token": r.get("token_metrics", {}).get("total_tokens_consumed", 0),
                 "Lãng phí (%)": r.get("token_metrics", {}).get("token_waste_percentage", 0),
             } for r in past])
@@ -224,12 +403,15 @@ def render_search_tab():
             ai_mode = st.selectbox("Chế độ AI / Fallback", ["AI then Fallback", "Fallback only"], index=0)
 
             plat_opts = ["youtube", "meetup", "x", "tiktok", "linkedin", "web"] + (["eventbrite"] if crawl_eventbrite else [])
-            selected_platforms = st.multiselect("Nền tảng", plat_opts, default=["linkedin"] if "linkedin" in plat_opts else plat_opts)
+            selected_platforms = st.multiselect("Nền tảng", plat_opts, default=["youtube"] if "youtube" in plat_opts else plat_opts)
+
+            yt_mode_choice = st.selectbox("Bộ lọc YouTube (Playwright)", ["Tất cả (Live & Upcoming)", "Chỉ Live đang phát", "Chỉ Sắp diễn ra (Upcoming)"], index=0)
+            yt_mode_val = "all" if "Tất cả" in yt_mode_choice else ("live" if "Chỉ Live" in yt_mode_choice else "upcoming")
 
             enable_cache = st.checkbox("Enable per-platform cache", value=True)
             cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
-            use_headless = st.checkbox("Use headless browser for X/TikTok/LinkedIn", value=False)
-            use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Tắt sẽ dùng Playwright Scraper)", value=True)
+            use_headless = st.checkbox("Use headless browser for Playwright", value=True)
+            use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Mặc định tắt: dùng Playwright Scraper)", value=False)
             force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
             limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
 
@@ -249,14 +431,14 @@ def render_search_tab():
             st.warning("Vui lòng nhập mục tiêu tìm kiếm.")
             st.stop()
 
-        with st.spinner("🤖 AI đang phân tích mục tiêu..."):
+        with st.spinner("🤖 AI đang phân tích mục tiêu và cào dữ liệu YouTube..."):
             if use_ai_crawl:
                 mode = "ai_then_fallback" if ai_mode == "AI then Fallback" else "fallback_only"
                 agent_result = crawl_livestreams_with_ai(
                     goal, limit, platforms=selected_platforms, mode=mode,
-                    per_platform_timeout=20, cache=bool(enable_cache), cache_ttl=int(cache_ttl),
+                    per_platform_timeout=25, cache=bool(enable_cache), cache_ttl=int(cache_ttl),
                     use_headless=bool(use_headless), force_recompile=bool(force_recompile),
-                    use_youtube_api=bool(use_youtube_api),
+                    use_youtube_api=bool(use_youtube_api), youtube_mode=yt_mode_val,
                 )
             else:
                 agent_result = search_livestreams(goal, limit, use_headless=bool(use_headless), use_youtube_api=bool(use_youtube_api))

@@ -1,0 +1,55 @@
+{
+  "goal": "Healthcare Tech & Telemedicine Compliance",
+  "compiled_at": "2026-08-08T22:14:43",
+  "compiled_by": "groq/llama-3.3-70b-versatile",
+  "industries": [
+    "healthcare",
+    "telemedicine",
+    "medical technology",
+    "health tech",
+    "compliance"
+  ],
+  "personas": [
+    "healthcare professional",
+    "telemedicine provider",
+    "compliance officer",
+    "medical technologist"
+  ],
+  "topics": [
+    "telemedicine",
+    "healthcare tech",
+    "compliance",
+    "medical technology",
+    "healthcare innovation",
+    "remote healthcare",
+    "digital health",
+    "healthcare regulation",
+    "medical law",
+    "telehealth"
+  ],
+  "search_queries": [
+    "telemedicine live",
+    "healthcare tech stream",
+    "compliance webinar",
+    "medical tech online",
+    "healthcare innovation livestream",
+    "telehealth event",
+    "healthcare law live",
+    "medical technology stream",
+    "digital health livestream",
+    "healthcare compliance online",
+    "remote healthcare live",
+    "health tech stream"
+  ],
+  "positive_keywords": [
+    "telemedicine",
+    "healthcare tech",
+    "compliance",
+    "medical technology",
+    "healthcare innovation",
+    "digital health",
+    "healthcare regulation",
+    "medical law"
+  ],
+  "negative_keywords": []
+}
