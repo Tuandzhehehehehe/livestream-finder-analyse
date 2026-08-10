@@ -15,6 +15,29 @@ EXCEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "dat
 EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'TikTok', 'Web']
 
 
+ALLOWED_PLATFORMS_LOWER = ["youtube", "tiktok", "web"]
+
+
+def purge_legacy_platforms():
+    """Xoá các event thuộc nền tảng cũ (LinkedIn, Meetup, X, Eventbrite, ...)."""
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                delete(livestreams).where(
+                    sqlfunc.lower(livestreams.c.platform).notin_(ALLOWED_PLATFORMS_LOWER)
+                )
+            )
+    except Exception as e:
+        print(f"❌ Error purging legacy platforms: {e}")
+
+
+# Auto-purge legacy platforms on module load
+try:
+    purge_legacy_platforms()
+except Exception:
+    pass
+
+
 def save_to_excel(event: dict) -> bool:
     """
     Lưu thông tin livestream vào file Excel kèm theo chỉ số đánh giá tiềm năng.
@@ -123,7 +146,11 @@ def save_event(event: dict) -> bool:
 
 def get_all_events():
     with engine.connect() as conn:
-        return conn.execute(select(livestreams)).fetchall()
+        return conn.execute(
+            select(livestreams).where(
+                sqlfunc.lower(livestreams.c.platform).in_(ALLOWED_PLATFORMS_LOWER)
+            )
+        ).fetchall()
 
 
 def get_event_by_id(event_id: int):
@@ -155,20 +182,24 @@ def delete_event_by_url(url: str) -> bool:
 
 
 def get_summary_stats() -> dict:
-    """Tổng hợp thống kê toàn bộ events trong DB."""
+    """Tổng hợp thống kê toàn bộ events trong DB (chỉ tính các platform hợp lệ: YouTube, TikTok, Web)."""
+    base_where = sqlfunc.lower(livestreams.c.platform).in_(ALLOWED_PLATFORMS_LOWER)
+
     def _group(conn, col):
         rows = conn.execute(
-            select(col, sqlfunc.count(livestreams.c.id)).group_by(col)
+            select(col, sqlfunc.count(livestreams.c.id))
+            .where(base_where)
+            .group_by(col)
         ).fetchall()
         return {(r[0] or "unknown"): r[1] for r in rows}
 
     with engine.connect() as conn:
         return {
-            "total_events":      conn.execute(select(sqlfunc.count(livestreams.c.id))).scalar() or 0,
+            "total_events":      conn.execute(select(sqlfunc.count(livestreams.c.id)).where(base_where)).scalar() or 0,
             "by_platform":       _group(conn, livestreams.c.platform),
             "by_priority":       _group(conn, livestreams.c.priority),
             "by_status":         _group(conn, livestreams.c.status),
-            "avg_score":         round(float(conn.execute(select(sqlfunc.avg(livestreams.c.score))).scalar() or 0), 1),
-            "top_score":         int(conn.execute(select(sqlfunc.max(livestreams.c.score))).scalar() or 0),
-            "latest_crawled_at": str(v)[:19] if (v := conn.execute(select(sqlfunc.max(livestreams.c.created_at))).scalar()) else "–",
+            "avg_score":         round(float(conn.execute(select(sqlfunc.avg(livestreams.c.score)).where(base_where)).scalar() or 0), 1),
+            "top_score":         int(conn.execute(select(sqlfunc.max(livestreams.c.score)).where(base_where)).scalar() or 0),
+            "latest_crawled_at": str(v)[:19] if (v := conn.execute(select(sqlfunc.max(livestreams.c.created_at)).where(base_where)).scalar()) else "–",
         }
