@@ -164,11 +164,11 @@ def get_summary_stats() -> dict:
 
     with engine.connect() as conn:
         return {
-            "total_events":      conn.execute(sqlfunc.count(livestreams.c.id)).scalar() or 0,
+            "total_events":      conn.execute(select(sqlfunc.count(livestreams.c.id))).scalar() or 0,
             "by_platform":       _group(conn, livestreams.c.platform),
             "by_priority":       _group(conn, livestreams.c.priority),
             "by_status":         _group(conn, livestreams.c.status),
-            "avg_score":         round(float(conn.execute(sqlfunc.avg(livestreams.c.score)).scalar() or 0), 1),
-            "top_score":         int(conn.execute(sqlfunc.max(livestreams.c.score)).scalar() or 0),
-            "latest_crawled_at": str(v)[:19] if (v := conn.execute(sqlfunc.max(livestreams.c.created_at)).scalar()) else "–",
+            "avg_score":         round(float(conn.execute(select(sqlfunc.avg(livestreams.c.score))).scalar() or 0), 1),
+            "top_score":         int(conn.execute(select(sqlfunc.max(livestreams.c.score))).scalar() or 0),
+            "latest_crawled_at": str(v)[:19] if (v := conn.execute(select(sqlfunc.max(livestreams.c.created_at))).scalar()) else "–",
         }

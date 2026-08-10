@@ -441,7 +441,7 @@ def get_channel_summary() -> dict:
         top_cas, channels_with_score, latest_crawled_at.
     """
     with engine.connect() as conn:
-        total = conn.execute(sqlfunc.count(channel_profiles.c.id)).scalar() or 0
+        total = conn.execute(select(sqlfunc.count(channel_profiles.c.id))).scalar() or 0
 
         rows = conn.execute(
             select(channel_profiles.c.platform, sqlfunc.count(channel_profiles.c.id))
@@ -449,13 +449,12 @@ def get_channel_summary() -> dict:
         ).fetchall()
         by_platform = {(r[0] or "unknown"): r[1] for r in rows}
 
-        avg_cas = conn.execute(sqlfunc.avg(channel_profiles.c.cas)).scalar()
-        top_cas = conn.execute(sqlfunc.max(channel_profiles.c.cas)).scalar()
+        avg_cas = conn.execute(select(sqlfunc.avg(channel_profiles.c.cas))).scalar()
+        top_cas = conn.execute(select(sqlfunc.max(channel_profiles.c.cas))).scalar()
         with_score = conn.execute(
-            sqlfunc.count(channel_profiles.c.id)
-            .filter(channel_profiles.c.cas.isnot(None))
+            select(sqlfunc.count(channel_profiles.c.id)).where(channel_profiles.c.cas.isnot(None))
         ).scalar() or 0
-        latest = conn.execute(sqlfunc.max(channel_profiles.c.crawled_at)).scalar()
+        latest = conn.execute(select(sqlfunc.max(channel_profiles.c.crawled_at))).scalar()
 
     return {
         "total_channels":    total,

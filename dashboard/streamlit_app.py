@@ -391,6 +391,7 @@ def render_ai_status_tab():
     st.subheader("🔑 Trạng thái AI Provider APIs")
     col_g, col_gr, col_o = st.columns(3)
 
+    # pyrefly: ignore [missing-import]
     from dotenv import load_dotenv
     load_dotenv(override=True)
     gemini_key = os.getenv("GEMINI_API_KEY")
