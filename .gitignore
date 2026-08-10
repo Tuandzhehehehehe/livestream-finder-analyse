@@ -6,4 +6,7 @@ __pycache__/
 data/browser_profile/
 ._*
 .DS_Store
-
+data/benchmark_reports/
+data/*.log
+data/*.sqlite
+data/token_usage.log

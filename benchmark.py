@@ -96,7 +96,7 @@ def main():
         "--platforms",
         nargs="*",
         default=None,
-        help="Platforms to test: youtube meetup linkedin x tiktok web eventbrite (default: youtube meetup web linkedin x tiktok)",
+        help="Platforms to test: youtube tiktok web (default: youtube tiktok web)",
     )
     parser.add_argument(
         "--limit",

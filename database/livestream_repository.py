@@ -6,19 +6,42 @@ database/livestream_repository.py — Database & Excel Persistence Layer
 import os
 from openpyxl import load_workbook, Workbook
 # pyrefly: ignore [missing-import]
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func as sqlfunc
 # pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from database.db import engine, livestreams
 
 EXCEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
-EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'Meetup', 'X', 'TikTok', 'Eventbrite', 'LinkedIn']
+EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'TikTok', 'Web']
+
+
+ALLOWED_PLATFORMS_LOWER = ["youtube", "tiktok", "web"]
+
+
+def purge_legacy_platforms():
+    """Xoá các event thuộc nền tảng cũ (LinkedIn, Meetup, X, Eventbrite, ...)."""
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                delete(livestreams).where(
+                    sqlfunc.lower(livestreams.c.platform).notin_(ALLOWED_PLATFORMS_LOWER)
+                )
+            )
+    except Exception as e:
+        print(f"❌ Error purging legacy platforms: {e}")
+
+
+# Auto-purge legacy platforms on module load
+try:
+    purge_legacy_platforms()
+except Exception:
+    pass
 
 
 def save_to_excel(event: dict) -> bool:
     """
     Lưu thông tin livestream vào file Excel kèm theo chỉ số đánh giá tiềm năng.
-    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, Meetup, X, TikTok, Eventbrite, LinkedIn
+    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, TikTok, Web
     """
     try:
         os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)
@@ -51,7 +74,7 @@ def save_to_excel(event: dict) -> bool:
 
         url_exists = False
         for row in range(2, ws.max_row + 1):
-            for col in range(10, 16):
+            for col in range(10, 13):
                 cell_val = ws.cell(row=row, column=col).value
                 if cell_val and str(cell_val).strip() == url:
                     url_exists = True
@@ -72,21 +95,15 @@ def save_to_excel(event: dict) -> bool:
         content = event.get("description", "")
         date = event.get("scheduled_start_time") or event.get("start_time") or ""
 
-        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", "", "", "", ""]
+        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", ""]
 
         platform = str(event.get("platform", "")).lower().strip()
         if "youtube" in platform:
             row_data[9] = url
-        elif "meetup" in platform:
-            row_data[10] = url
-        elif "x" in platform or "twitter" in platform:
-            row_data[11] = url
         elif "tiktok" in platform:
-            row_data[12] = url
-        elif "eventbrite" in platform:
-            row_data[13] = url
-        elif "linkedin" in platform:
-            row_data[14] = url
+            row_data[10] = url
+        else:
+            row_data[11] = url
 
         ws.append(row_data)
         wb.save(EXCEL_PATH)
@@ -129,7 +146,11 @@ def save_event(event: dict) -> bool:
 
 def get_all_events():
     with engine.connect() as conn:
-        return conn.execute(select(livestreams)).fetchall()
+        return conn.execute(
+            select(livestreams).where(
+                sqlfunc.lower(livestreams.c.platform).in_(ALLOWED_PLATFORMS_LOWER)
+            )
+        ).fetchall()
 
 
 def get_event_by_id(event_id: int):
@@ -158,3 +179,27 @@ def delete_event_by_url(url: str) -> bool:
     with engine.begin() as conn:
         res = conn.execute(delete(livestreams).where(livestreams.c.url == url))
         return res.rowcount > 0
+
+
+def get_summary_stats() -> dict:
+    """Tổng hợp thống kê toàn bộ events trong DB (chỉ tính các platform hợp lệ: YouTube, TikTok, Web)."""
+    base_where = sqlfunc.lower(livestreams.c.platform).in_(ALLOWED_PLATFORMS_LOWER)
+
+    def _group(conn, col):
+        rows = conn.execute(
+            select(col, sqlfunc.count(livestreams.c.id))
+            .where(base_where)
+            .group_by(col)
+        ).fetchall()
+        return {(r[0] or "unknown"): r[1] for r in rows}
+
+    with engine.connect() as conn:
+        return {
+            "total_events":      conn.execute(select(sqlfunc.count(livestreams.c.id)).where(base_where)).scalar() or 0,
+            "by_platform":       _group(conn, livestreams.c.platform),
+            "by_priority":       _group(conn, livestreams.c.priority),
+            "by_status":         _group(conn, livestreams.c.status),
+            "avg_score":         round(float(conn.execute(select(sqlfunc.avg(livestreams.c.score)).where(base_where)).scalar() or 0), 1),
+            "top_score":         int(conn.execute(select(sqlfunc.max(livestreams.c.score)).where(base_where)).scalar() or 0),
+            "latest_crawled_at": str(v)[:19] if (v := conn.execute(select(sqlfunc.max(livestreams.c.created_at)).where(base_where)).scalar()) else "–",
+        }

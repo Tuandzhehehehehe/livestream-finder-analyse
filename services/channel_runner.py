@@ -10,9 +10,13 @@ services/channel_runner.py — Channel Intelligence Pipeline
 
 from __future__ import annotations
 
+import csv
 import importlib
+import io
+import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse
@@ -38,10 +42,7 @@ if not logger.handlers:
 _CRAWLERS: dict[str, str] = {
     "youtube":    "channel_crawler.youtube_channel.crawl_youtube_channels_bulk",
     "tiktok":     "channel_crawler.tiktok_channel.crawl_tiktok_channels_bulk",
-    "x":          "channel_crawler.x_channel.crawl_x_channels_bulk",
-    "linkedin":   "channel_crawler.linkedin_channel.crawl_linkedin_channels_bulk",
-    "meetup":     "channel_crawler.meetup_channel.crawl_meetup_channels_bulk",
-    "eventbrite": "channel_crawler.eventbrite_channel.crawl_eventbrite_channels_bulk",
+    "web":        "channel_crawler.web_channel.crawl_web_channels_bulk",
 }
 
 
@@ -90,7 +91,15 @@ def crawl_and_save_channels(urls: list[str], platform: str, *, max_live_history:
 # ── Auto-crawl channel từ livestream events ────────────────────────────────────
 
 def _infer_channel_url(event_url: str, platform: str) -> str:
-    """Suy luận channel URL từ URL của một livestream event."""
+    """
+    Suy luận channel URL từ URL của một livestream event.
+
+    Hỗ trợ:
+      - YouTube: /channel/<id>, /@handle, /c/<handle>, /user/<user>
+      - YouTube watch?v=VIDEO_ID → resolve channelId qua YouTube Data API
+      - TikTok: /@<username>, /video/<id> (lấy author từ URL path)
+      - Web: trả về origin URL làm channel URL (homepage)
+    """
     if not event_url:
         return ""
     p = urlparse(event_url)
@@ -98,20 +107,52 @@ def _infer_channel_url(event_url: str, platform: str) -> str:
 
     if platform == "youtube":
         path = p.path.rstrip("/")
-        if "/channel/" in path or path.startswith("/@"):
+        # Đã là channel URL
+        if "/channel/" in path or path.startswith("/@") or "/c/" in path or "/user/" in path:
             return f"https://youtube.com{path}"
-        return ""  # watch?v= không suy luận được
+        # watch?v=VIDEO_ID → resolve về channel URL qua API
+        video_match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", event_url)
+        if video_match:
+            return _resolve_youtube_channel_from_video(video_match.group(1))
+        return ""
 
-    if platform == "tiktok" and path_parts and path_parts[0].startswith("@"):
-        return f"https://tiktok.com/{path_parts[0]}"
+    if platform == "tiktok":
+        if path_parts and path_parts[0].startswith("@"):
+            return f"https://tiktok.com/{path_parts[0]}"
+        # /video/ID → không có username trong URL, bỏ qua
+        return ""
 
-    if platform == "x" and path_parts:
-        return f"https://x.com/{path_parts[0]}"
-
-    if platform == "linkedin" and ("/in/" in p.path or "/company/" in p.path):
-        return f"https://linkedin.com/{'/'.join(path_parts[:2])}"
+    if platform == "web":
+        # Dùng origin (scheme + netloc) làm đại diện channel
+        if p.scheme and p.netloc:
+            return f"{p.scheme}://{p.netloc}"
+        return ""
 
     return ""
+
+
+def _resolve_youtube_channel_from_video(video_id: str) -> str:
+    """
+    Dùng YouTube Data API để lấy channelId từ videoId.
+    Trả về channel URL hoặc chuỗi rỗng nếu không resolve được.
+    """
+    import os
+    key = os.getenv("YOUTUBE_API_KEY")
+    if not key:
+        logger.debug("[YouTube] YOUTUBE_API_KEY chưa cấu hình, bỏ qua resolve video→channel")
+        return ""
+    try:
+        from googleapiclient.discovery import build  # pyrefly: ignore [missing-import]
+        yt = build("youtube", "v3", developerKey=key)
+        resp = yt.videos().list(part="snippet", id=video_id).execute()
+        items = resp.get("items", [])
+        if not items:
+            return ""
+        ch_id = items[0]["snippet"].get("channelId", "")
+        return f"https://youtube.com/channel/{ch_id}" if ch_id else ""
+    except Exception as e:
+        logger.debug(f"[YouTube] resolve video→channel error ({video_id}): {e}")
+        return ""
 
 
 def enqueue_channels_from_events(events: list[dict]) -> dict:
@@ -121,46 +162,47 @@ def enqueue_channels_from_events(events: list[dict]) -> dict:
     """
     from database.channel_repository import get_channel_by_url
 
-    # Trích và dedup channel URL theo platform
-    platform_urls: dict[str, list[str]] = {}
+    # Trích (platform, url) duy nhất từ events
+    seen: set[str] = set()
+    pairs: list[tuple[str, str]] = []
     for ev in events:
         platform = (ev.get("platform") or "").lower()
         if not platform:
             continue
-        ch_url = ev.get("channel_url", "").strip() or _infer_channel_url(ev.get("url", ""), platform)
-        if ch_url and ch_url not in platform_urls.get(platform, []):
-            platform_urls.setdefault(platform, []).append(ch_url)
+        url = ev.get("channel_url", "").strip() or _infer_channel_url(ev.get("url", ""), platform)
+        if url and url not in seen:
+            seen.add(url)
+            pairs.append((platform, url))
 
-    total_new = sum(len(v) for v in platform_urls.values())
-    if not total_new:
+    if not pairs:
         return {"new_urls": 0, "skipped_existing": 0, "saved": 0, "skipped_crawl": 0}
 
-    # Lọc URL chưa có trong DB
-    skipped_existing = 0
+    # Lọc URL chưa có trong DB, gom theo platform
     to_crawl: dict[str, list[str]] = {}
-    for platform, urls in platform_urls.items():
-        fresh = [u for u in urls if not get_channel_by_url(u)]
-        skipped_existing += len(urls) - len(fresh)
-        if fresh:
-            to_crawl[platform] = fresh
+    skipped_existing = 0
+    for platform, url in pairs:
+        if get_channel_by_url(url):
+            skipped_existing += 1
+        else:
+            to_crawl.setdefault(platform, []).append(url)
 
     if not to_crawl:
         logger.info(f"[AutoChannel] {skipped_existing} channel đã có trong DB")
-        return {"new_urls": total_new, "skipped_existing": skipped_existing, "saved": 0, "skipped_crawl": 0}
+        return {"new_urls": len(pairs), "skipped_existing": skipped_existing, "saved": 0, "skipped_crawl": 0}
 
-    # Crawl batch theo platform
     saved = skipped_crawl = 0
     for platform, urls in to_crawl.items():
         try:
             s = crawl_and_save_channels(urls, platform)
-            saved += s["saved"]
+            saved        += s["saved"]
             skipped_crawl += s["skipped"]
         except Exception as e:
             logger.warning(f"[AutoChannel] {platform}: {e}")
             skipped_crawl += len(urls)
 
     logger.info(f"[AutoChannel] {saved} lưu | {skipped_existing} đã có | {skipped_crawl} lỗi")
-    return {"new_urls": total_new, "skipped_existing": skipped_existing, "saved": saved, "skipped_crawl": skipped_crawl}
+    return {"new_urls": len(pairs), "skipped_existing": skipped_existing, "saved": saved, "skipped_crawl": skipped_crawl}
+
 
 
 # ── Làm mới điểm số ────────────────────────────────────────────────────────────
@@ -188,6 +230,7 @@ def run_channel_pipeline(
     top_k_recommend: int = 10,
     min_cas: float = 20.0,
     min_rcas: float = 10.0,
+    diverse: bool = True,
 ) -> dict:
     """
     [refresh] → [rank] → [recommend] cho một khu vực.
@@ -214,7 +257,49 @@ def run_channel_pipeline(
     result["recommendations"] = recommend_channels_by_region(
         target_region, platform=platform,
         top_k=top_k_recommend, min_cas=min_cas, min_rcas=min_rcas,
+        diverse=diverse,
     )
 
     logger.info(f"✅ {len(result['ranking'])} xếp hạng | {len(result['recommendations'])} đề xuất")
     return result
+
+
+# ── Export helpers ──────────────────────────────────────────────────────────────
+
+_EXPORT_FIELDS = [
+    "rank", "channel_name", "username", "platform", "country", "region_tag",
+    "follower_count", "cas", "rcas", "tier", "channel_url",
+    "broadcast_freq_weekly", "total_livestreams", "last_live_at",
+]
+
+
+def export_ranking(ranking: list[dict], fmt: str = "csv") -> str:
+    """
+    Chuyển đổi danh sách ranking thành CSV hoặc JSON string để download.
+
+    Args:
+        ranking: list[dict] trả về từ run_channel_pipeline()["ranking"]
+        fmt:     "csv" | "json"
+
+    Returns:
+        str — nội dung file để ghi hoặc truyền vào st.download_button
+    """
+    rows = []
+    for i, ch in enumerate(ranking, 1):
+        row = {"rank": i}
+        for f in _EXPORT_FIELDS[1:]:
+            v = ch.get(f)
+            if isinstance(v, float):
+                v = round(v, 2)
+            row[f] = v if v is not None else ""
+        rows.append(row)
+
+    if fmt == "json":
+        return json.dumps(rows, ensure_ascii=False, indent=2)
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=_EXPORT_FIELDS, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
+    return buf.getvalue()
+

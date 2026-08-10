@@ -9,19 +9,11 @@ from functools import lru_cache
 from typing import List, Dict, Any
 
 from crawler.youtube import crawl_youtube_live
-from crawler.meetup import crawl_meetup
-from crawler.x import crawl_x_live
 from crawler.tiktok import crawl_tiktok_live
-from crawler.linkedin import crawl_linkedin
 from crawler.web_search import crawl_web
 from services.goal_analyzer import build_fallback
 from services.relevance_filter import calculate_relevance
 from services.goal_profile_compiler import get_or_compile
-
-try:
-    from crawler.eventbrite import crawl_eventbrite
-except Exception:
-    crawl_eventbrite = None
 
 
 @lru_cache(maxsize=1024)
@@ -244,20 +236,14 @@ def crawl_livestreams_with_ai(
     # Tập nền tảng chỉ dùng từ khóa gốc (không thêm hậu tố livestream/webinar)
     # Vì YouTube và TikTok đã có tuỳ chọn API/URL lọc riêng cho livestream, 
     # thêm hậu tố " live" sẽ làm mất các sự kiện có tiêu đề không chứa chữ "live".
-    EVENT_ONLY_PLATFORMS = {"linkedin", "meetup", "eventbrite", "youtube", "tiktok"}
+    EVENT_ONLY_PLATFORMS = {"youtube", "tiktok"}
 
     events = []
     platform_calls = {
         "youtube": crawl_youtube_live,
-        "meetup": crawl_meetup,
-        "x": crawl_x_live,
         "tiktok": crawl_tiktok_live,
-        "linkedin": crawl_linkedin,
         "web": crawl_web,
     }
-
-    if crawl_eventbrite:
-        platform_calls["eventbrite"] = crawl_eventbrite
 
     if platforms:
         expanded_keys = []
@@ -265,9 +251,7 @@ def crawl_livestreams_with_ai(
             p_lower = str(p).lower().strip()
             if p_lower in ("video platforms", "video_platforms", "video flatform", "video_flatform", "video", "📹 video platforms (youtube, tiktok)"):
                 expanded_keys.extend(["youtube", "tiktok"])
-            elif p_lower in ("event platforms", "event_platforms", "events", "🤝 event platforms (meetup, linkedin, eventbrite)"):
-                expanded_keys.extend(["meetup", "linkedin", "eventbrite"])
-            else:
+            elif p_lower in platform_calls:
                 expanded_keys.append(p_lower)
         keys = list(dict.fromkeys(expanded_keys))
     else:
@@ -334,9 +318,8 @@ def crawl_livestreams_with_ai(
             print(f"[AI Crawl Tool] Searching {platform_name}...")
             # try to pass optional headless kwarg to crawler if supported.
             # X and TikTok block anonymous scraping, so they always need a
-            # real (logged-in) browser regardless of the global flag.
             crawler_opts = {}
-            if platform_name in ("x", "tiktok", "linkedin"):
+            if platform_name == "tiktok":
                 crawler_opts["use_headless"] = kwargs.get("use_headless", True)
             else:
                 crawler_opts["use_headless"] = kwargs.get("use_headless", False)

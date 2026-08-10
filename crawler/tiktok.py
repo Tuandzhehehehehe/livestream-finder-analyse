@@ -83,7 +83,6 @@ def crawl_tiktok_live(keywords: list, limit: int = 20, use_headless: bool = True
             context = launch_context(p, "tiktok", headless=use_headless)
             page = context.pages[0] if context.pages else context.new_page()
             payloads = []
-
             def _on_response(r):
                 if "/api/search/" in r.url:
                     try:
