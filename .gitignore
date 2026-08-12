@@ -10,3 +10,5 @@ data/benchmark_reports/
 data/*.log
 data/*.sqlite
 data/token_usage.log
+*.parquet
+data/*.parquet
