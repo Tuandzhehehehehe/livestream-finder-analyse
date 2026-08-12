@@ -12,7 +12,7 @@ from crawler.youtube import crawl_youtube_live
 from crawler.tiktok import crawl_tiktok_live
 from crawler.web_search import crawl_web
 from services.goal_analyzer import build_fallback
-from services.relevance_filter import calculate_relevance
+from ai.spam_classifier import calculate_relevance
 from services.goal_profile_compiler import get_or_compile
 
 

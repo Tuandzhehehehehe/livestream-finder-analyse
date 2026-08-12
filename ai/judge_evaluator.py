@@ -76,9 +76,10 @@ def evaluate_with_llm_judge(
             "critique": "Missing title or empty event.",
         }
 
-    # Rule-based quick penalty for obvious gaming scam giveaways
-    title_lower = clean_title.lower()
-    if any(p in title_lower for p in ["free robux", "robux generator", "free adopt me", "vbucks generator", "crypto pump 100x"]):
+    # ML-based spam detection penalty
+    from ai.spam_classifier import predict_spam
+    is_sp, prob = predict_spam(clean_title, clean_desc)
+    if is_sp and prob >= 0.75:
         return {
             "judge_score": 0.0,
             "goal_relevance_pts": 0,
@@ -86,7 +87,7 @@ def evaluate_with_llm_judge(
             "actionability_pts": 0,
             "is_spam": True,
             "is_relevant": False,
-            "critique": "Spam/Scam giveaway detected.",
+            "critique": f"ML Spam Classifier detected spam/scam (probability: {prob * 100:.0f}%).",
         }
 
     prompt = JUDGE_RUBRIC_PROMPT.format(

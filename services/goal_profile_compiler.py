@@ -141,13 +141,9 @@ def get_or_compile(goal: str, force_recompile: bool = False) -> dict:
 def _fallback_profile(goal: str) -> dict:
     """Tạo profile cơ bản không cần AI khi có lỗi."""
     import re
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
     words = re.findall(r'[a-zA-Z0-9]+', goal.lower())
-    stop_words = {
-        "livestream", "livestreams", "tim", "kiem", "khach", "hang",
-        "and", "with", "the", "a", "an", "or", "in", "on", "at", "to",
-        "by", "of", "for", "is", "are", "ban", "cho"
-    }
-    core = [w for w in words if w not in stop_words and len(w) > 2]
+    core = [w for w in words if w not in ENGLISH_STOP_WORDS and len(w) > 2]
 
     suffixes = ["live", "livestream", "stream", "online"]
     queries = [goal] + [f"{w} {s}" for w in core for s in suffixes]
