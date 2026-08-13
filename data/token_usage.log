@@ -2226,3 +2226,6 @@
 {"timestamp": 1786540611.896197, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 402, "candidate_tokens": 105, "total_tokens": 507, "category": "comment"}
 {"timestamp": 1786540612.5701592, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 237, "candidate_tokens": 118, "total_tokens": 355, "category": "classify"}
 {"timestamp": 1786540613.467988, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 402, "candidate_tokens": 103, "total_tokens": 505, "category": "comment"}
+{"timestamp": 1786584842.96068, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 419, "candidate_tokens": 94, "total_tokens": 513, "category": "third_party_judge"}
+{"timestamp": 1786584843.659807, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 434, "candidate_tokens": 101, "total_tokens": 535, "category": "third_party_judge"}
+{"timestamp": 1786584844.290331, "model": "groq/llama-3.3-70b-versatile", "prompt_tokens": 437, "candidate_tokens": 102, "total_tokens": 539, "category": "third_party_judge"}

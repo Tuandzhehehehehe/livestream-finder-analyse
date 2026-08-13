@@ -306,9 +306,15 @@ class BenchmarkRunner:
         total_high = sum(v["high_priority_count"] for v in platform_results.values())
         total_med = sum(v["medium_priority_count"] for v in platform_results.values())
 
-        # Pillar 1: Scraper Performance
-        total_live_items = sum(1 for it in all_raw_events if it.get("status") in ("LIVE", "UPCOMING"))
-        live_precision_overall = round((total_live_items / max(1, total_raw)) * 100, 1)
+        # Pillar 1: Scraper Performance (Live vs Static VOD Classification)
+        tp_live = sum(1 for it in all_raw_events if it.get("status") in ("LIVE", "UPCOMING"))
+        fp_live = sum(1 for it in all_raw_events if it.get("status") not in ("LIVE", "UPCOMING"))
+        total_target_requested = max(1, self.limit * len(self.platforms))
+        fn_live = max(0, total_target_requested - tp_live)
+        
+        live_precision_overall = round((tp_live / max(1, tp_live + fp_live)) * 100, 1)
+        live_recall_overall = round((tp_live / max(1, tp_live + fn_live)) * 100, 1)
+        live_f1_overall = round((2 * live_precision_overall * live_recall_overall / max(0.001, live_precision_overall + live_recall_overall)), 1)
         
         all_field_checks = 0
         for it in all_raw_events:
@@ -316,12 +322,19 @@ class BenchmarkRunner:
             all_field_checks += (ok_cnt / 4.0)
         overall_completeness = round((all_field_checks / max(1, total_raw)) * 100, 1)
 
-        # Pillar 2: Relevance & AI Precision
+        # Pillar 2: Relevance & AI Precision / Recall / F1
         top_5_events = all_dedup_events[:5]
         top_10_events = all_dedup_events[:10]
         p_at_5 = round((sum(1 for it in top_5_events if it.get("score", 0) >= 40) / max(1, len(top_5_events))) * 100, 1) if top_5_events else 0.0
         p_at_10 = round((sum(1 for it in top_10_events if it.get("score", 0) >= 40) / max(1, len(top_10_events))) * 100, 1) if top_10_events else 0.0
         
+        tp_rel = sum(1 for it in all_dedup_events if it.get("score", 0) >= 40)
+        fp_rel = sum(1 for it in all_dedup_events if it.get("score", 0) < 40)
+        fn_rel = max(0, min(self.limit, total_raw) - tp_rel)
+        rel_precision = round((tp_rel / max(1, len(all_dedup_events))) * 100, 1)
+        rel_recall = round((tp_rel / max(1, tp_rel + fn_rel)) * 100, 1)
+        rel_f1 = round((2 * rel_precision * rel_recall / max(0.001, rel_precision + rel_recall)), 1)
+
         spam_items_count = sum(1 for it in all_dedup_events if it.get("score", 0) < 20)
         spam_leakage_rate = round((spam_items_count / max(1, len(all_dedup_events))) * 100, 1)
 
@@ -407,16 +420,23 @@ class BenchmarkRunner:
             "evaluation_metrics": {
                 "pillar_1_scraper_performance": {
                     "live_precision_rate": live_precision_overall,
+                    "live_recall_rate": live_recall_overall,
+                    "live_f1_score": live_f1_overall,
+                    "true_positives_live": tp_live,
+                    "false_positives_live": fp_live,
                     "field_completeness_rate": overall_completeness,
                     "throughput_items_per_sec": round(total_raw / max(0.001, total_duration), 2),
                     "avg_latency_per_item_sec": round(total_duration / max(1, total_raw), 2),
                 },
                 "pillar_2_relevance_quality": {
+                    "relevance_precision_rate": rel_precision,
+                    "relevance_recall_rate": rel_recall,
+                    "relevance_f1_score": rel_f1,
                     "precision_at_5": p_at_5,
                     "precision_at_10": p_at_10,
                     "spam_leakage_rate": spam_leakage_rate,
                     "mean_reciprocal_rank": mrr,
-                    "status_accuracy_rate": 100.0 if total_live_items == total_raw else round((total_live_items / max(1, total_raw)) * 100, 1),
+                    "status_accuracy_rate": live_precision_overall,
                 },
                 "pillar_3_token_economy": {
                     "total_tokens_consumed": total_tokens_consumed,
@@ -462,10 +482,10 @@ class BenchmarkRunner:
         print("=" * 80)
         print(f"✅ BENCHMARK HOÀN TẤT TRONG {total_duration}s")
         print(f"  → G-Eval Judge Score: {avg_g_eval}/100 | NDCG@5: {ndcg_5_judge}")
-        print(f"  → Live Precision: {live_precision_overall}% | Completeness: {overall_completeness}%")
-        print(f"  → Precision@5: {p_at_5}% | MRR: {mrr} | Spam Leakage: {spam_leakage_rate}%")
-        print(f"  → Token tiêu thụ: {total_tokens_consumed:,} | Hiệu quả: {efficiency_percentage}%")
-        print(f"  → File báo cáo: {report_path}")
+        print(f"  → 📹 Scraper Live Detection: Precision={live_precision_overall}% | Recall={live_recall_overall}% | F1-Score={live_f1_overall}%")
+        print(f"  → 🎯 Relevance & AI Lead   : Precision={rel_precision}% | Recall={rel_recall}% | F1-Score={rel_f1}% | P@5={p_at_5}% | MRR={mrr}")
+        print(f"  → 🪙 Token tiêu thụ        : {total_tokens_consumed:,} tokens | Hiệu quả={efficiency_percentage}% (Lãng phí={waste_percentage}%)")
+        print(f"  → 📁 File báo cáo          : {report_path}")
         print("=" * 80)
 
         return report
