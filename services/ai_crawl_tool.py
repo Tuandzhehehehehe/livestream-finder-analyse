@@ -56,18 +56,28 @@ def infer_event_status(event: Dict[str, Any]) -> str:
     
     title = str(event.get("title", "")).lower()
     desc = str(event.get("description", "")).lower()
-    text = f"{title} {desc}"
+    meta = str(event.get("concurrent_viewers", "")).lower() + " " + str(event.get("start_time", "")).lower()
+    text = f"{title} {desc} {meta}"
     
-    # Chỉ gán LIVE nếu có các cụm từ khẳng định đang phát sóng trực tiếp ngay lúc này
+    # 1. Kiểm tra các dấu hiệu livestream ĐÃ KẾT THÚC (Streamed live ... ago / Đã phát trực tiếp)
+    ended_phrases = ["streamed live", "đã phát trực tiếp", "streamed", "ended live", "broadcasted", "ago", "trước"]
+    if any(phrase in text for phrase in ended_phrases) and not event.get("concurrent_viewers"):
+        return "COMPLETED"
+        
+    # 2. Chỉ gán LIVE nếu có người xem thực tế hoặc các cụm từ khẳng định đang phát sóng trực tiếp
     strict_live_phrases = [
         "🔴 live", "live now", "happening now", "watching now", "online now", 
         "đang phát trực tiếp", "streaming live now", "[live now]", "live stream now"
     ]
     
-    if any(phrase in text for phrase in strict_live_phrases):
+    if bool(event.get("concurrent_viewers")) or any(phrase in text for phrase in strict_live_phrases):
         return "LIVE"
         
-    return status if status else "UPCOMING"
+    # 3. Kiểm tra sắp diễn ra
+    if "scheduled" in text or "sắp" in text or "premiere" in text:
+        return "UPCOMING"
+        
+    return status if status else "COMPLETED"
 
 
 def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
@@ -304,10 +314,11 @@ def crawl_livestreams_with_ai(
 
     def run_crawler(platform_name, crawler_fn):
         try:
-            # build cache key from platform + queries
+            # build cache key from platform + queries + mode
             qhash = hashlib.sha256(json.dumps(queries, sort_keys=True).encode()).hexdigest()
             use_yt_api = kwargs.get("use_youtube_api", True)
-            cache_key = f"{platform_name}:{qhash}:{limit}:ytapi={use_yt_api}"
+            yt_mode = kwargs.get("youtube_mode", "all")
+            cache_key = f"{platform_name}:{qhash}:{limit}:ytapi={use_yt_api}:mode={yt_mode}"
 
             if cache_enabled:
                 cached = get_cache(cache_key)
@@ -371,6 +382,13 @@ def crawl_livestreams_with_ai(
 
     # Lọc sự kiện cũ/sai trạng thái trước khi score
     events = time_filter_events(events)
+
+    # Lọc chặt theo mode người dùng chọn (Chỉ Live hoặc Chỉ Upcoming)
+    yt_mode = kwargs.get("youtube_mode", "all")
+    if yt_mode == "live":
+        events = [e for e in events if e.get("status") == "LIVE"]
+    elif yt_mode == "upcoming":
+        events = [e for e in events if e.get("status") == "UPCOMING"]
 
     # First pass filtering/scoring
     events = filter_and_score_events(events, analysis, goal=goal)

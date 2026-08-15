@@ -8,6 +8,7 @@ Includes a fast hybrid n-gram TF-IDF fallback if sentence-transformers is loadin
 import os
 import re
 import math
+# pyrefly: ignore [missing-import]
 import numpy as np
 from typing import List, Dict, Any, Optional
 

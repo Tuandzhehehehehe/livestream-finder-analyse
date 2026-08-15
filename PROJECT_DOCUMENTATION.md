@@ -451,8 +451,10 @@ livestream-finder-analyse/
 ├── eval_agent_benchmark.py            # Script CLI chạy bài thi sát hạch Agent
 ├── track_tokens.py                    # Script CLI theo dõi lượng tiêu thụ token theo thời gian thực
 ├── Benchmark_Analysis.ipynb           # Jupyter Notebook phân tích sâu toàn bộ dữ liệu đánh giá
-├── requirements.txt                   # Danh sách thư viện phụ thuộc của dự án
-└── runProject.command / runProject.bat# File khởi chạy nhanh toàn bộ dự án bằng 1 click
+├── run.command                        # 🍎 File nhấp đúp (Double-click) tự động chạy trên macOS
+├── run.bat                            # 🪟 File nhấp đúp (Double-click) tự động chạy trên Windows
+├── run.sh                             # 🐧 Script chạy trên terminal Linux / macOS
+└── requirements.txt                   # Danh sách thư viện phụ thuộc Python
 ```
 
 ---
@@ -511,7 +513,7 @@ python -m crawler.session_login tiktok
 # Khởi chạy ứng dụng web Streamlit
 streamlit run dashboard/streamlit_app.py
 ```
-*Hoặc trên macOS, nhấp đúp vào file `runProject.command` (trên Windows nhấp đúp vào `runProject.bat`).*
+*Hoặc trên macOS nhấp đúp vào file `run.command` (trên Windows nhấp đúp vào `run.bat`).*
 
 #### Cách 2: Chạy Benchmark & Sát hạch Agent qua CLI
 ```bash
