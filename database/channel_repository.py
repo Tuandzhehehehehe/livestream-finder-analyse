@@ -411,7 +411,42 @@ def refresh_growth_trends() -> int:
             updated += 1
         except Exception as e:
             print(f"[ChannelRepo] refresh_growth_trends error ({ch['channel_url']}): {e}")
-    return updated
+def enrich_channel_meta(channel_url: str, goal: str = "", target_region: str = "") -> bool:
+    """Cập nhật bổ sung category (lĩnh vực từ khóa) và region_tag cho kênh nếu chưa có."""
+    ch = get_channel_by_url(channel_url)
+    if not ch:
+        return False
+    updates = {}
+    if goal and not ch.get("category"):
+        updates["category"] = goal
+
+    if goal:
+        s_info = dict(ch.get("seller_info") or {}) if isinstance(ch.get("seller_info"), dict) else {}
+        goals = set(s_info.get("search_goals") or [])
+        goals.add(goal)
+        s_info["search_goals"] = list(goals)
+        updates["seller_info"] = s_info
+
+    if target_region and (not ch.get("region_tag") or not ch.get("country")):
+        from channel_crawler.region_mapper import map_location
+        loc_info = map_location(target_region)
+        if not ch.get("country"):
+            updates["country"] = loc_info.get("country") or target_region.split("-")[0].upper()
+        if not ch.get("region_tag"):
+            updates["region_tag"] = loc_info.get("region_tag") or target_region
+
+    if updates:
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    update(channel_profiles)
+                    .where(channel_profiles.c.channel_url == channel_url)
+                    .values(**updates)
+                )
+            return True
+        except Exception as e:
+            print(f"[ChannelRepo] enrich_channel_meta error: {e}")
+    return False
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────

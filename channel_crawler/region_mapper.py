@@ -293,6 +293,42 @@ def enrich_channel_with_region(channel_data: dict) -> dict:
     return channel_data
 
 
+def infer_event_region(event: dict) -> dict:
+    """
+    Suy luận khu vực (country, region_tag) từ livestream event dict.
+    Dùng location_raw, description, title, language.
+    """
+    if event.get("country") or event.get("region_tag"):
+        return {
+            "country": event.get("country"),
+            "region_tag": event.get("region_tag") or event.get("country"),
+        }
+
+    text = " ".join([
+        str(event.get("title") or ""),
+        str(event.get("description") or "")[:500],
+        str(event.get("channel_name") or ""),
+        str(event.get("location_raw") or ""),
+    ])
+    res = map_location(text)
+    if res.get("matched"):
+        return res
+
+    lang = (event.get("language") or "").lower()
+    if "vi" in lang:
+        return {"country": "VN", "region_tag": "VN"}
+    if "th" in lang:
+        return {"country": "TH", "region_tag": "TH"}
+    if "ja" in lang:
+        return {"country": "JP", "region_tag": "JP"}
+    if "ko" in lang:
+        return {"country": "KR", "region_tag": "KR"}
+    if "id" in lang:
+        return {"country": "ID", "region_tag": "ID"}
+
+    return {"country": "Global", "region_tag": "Global"}
+
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
 def list_supported_regions() -> list[str]:

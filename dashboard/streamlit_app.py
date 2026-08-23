@@ -260,8 +260,14 @@ def render_search_tab():
             status_ph = st.empty()
             total = len(events)
 
+            from channel_crawler.region_mapper import infer_event_region
+
             for index, event in enumerate(events):
                 status_ph.info(f"⏳ Đang xử lý {index + 1}/{total}")
+                reg_info = infer_event_region(event)
+                event["region"] = reg_info.get("region_tag") or reg_info.get("country") or "Global"
+                event["country"] = reg_info.get("country")
+
                 if enable_ai and event.get("_match_score", 0) >= 15:
                     try:
                         orig_match = event.get("_match_score", event.get("score", 0))
@@ -287,12 +293,13 @@ def render_search_tab():
 
             # ── Tự động crawl channel từ events vừa tìm được ─────────────────
             with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
-                ch_sum = enqueue_channels_from_events(results)
-            if ch_sum.get("new_urls", 0) > 0:
+                ch_sum = enqueue_channels_from_events(results, goal=goal.strip())
+            if ch_sum.get("saved", 0) > 0 or ch_sum.get("skipped_existing", 0) > 0 or ch_sum.get("skipped_crawl", 0) > 0:
                 st.info(
                     f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
-                    f"**{ch_sum.get('skipped_existing', 0)}** đã có trong DB | "
+                    f"**{ch_sum.get('skipped_existing', 0)}** đã cập nhật/có trong DB | "
                     f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
+                    f" (Từ khóa: **{goal.strip()}**)"
                 )
 
         st.session_state["search_data"] = {
@@ -331,15 +338,21 @@ def render_search_tab():
         st.write("---")
         st.write("## KẾT QUẢ")
         df = pd.DataFrame(results)
-        cols = [c for c in ["title", "platform", "status", "industry", "buyer_persona", "score", "priority", "url"] if c in df.columns]
-        st.dataframe(df[cols], width="stretch")
+        cols = [c for c in ["title", "platform", "status", "region", "industry", "buyer_persona", "score", "priority", "url"] if c in df.columns]
+        st.dataframe(
+            df[cols],
+            width="stretch",
+            column_config={
+                "region": st.column_config.TextColumn("🌏 Khu vực", width="medium"),
+            }
+        )
 
         st.write("## CHI TIẾT")
         icons = {"YouTube": "📺", "TikTok": "🎵", "Web": "🌐"}
         for event in results:
             icon = icons.get(event.get("platform"), "📌")
             with st.expander(f"{icon} {event.get('title')}"):
-                st.write(f"**Platform:** {event.get('platform')} | **Status:** {event.get('status')} | **Score:** {event.get('score')}")
+                st.write(f"**Platform:** {event.get('platform')} | **Status:** {event.get('status')} | **Score:** {event.get('score')} | **🌏 Khu vực:** {event.get('region', 'Global')}")
                 st.write(f"**Industry:** {event.get('industry')} | **Buyer Persona:** {event.get('buyer_persona')}")
                 st.write(f"**Language:** {event.get('language')} | **Priority:** {event.get('priority')}")
                 st.write(f"**Reason:** {event.get('reason')}")
@@ -493,6 +506,7 @@ def render_channel_tab():
 
     min_cas = st.slider("CAS tối thiểu", 0, 100, 20, key="ch_mincas")
     diverse = st.checkbox("🔀 Đa dạng hóa platform (mỗi platform tối đa ceil(top_k/2) kênh)", value=True, key="ch_diverse")
+    ch_kw = st.text_input("🔍 Lọc kênh theo Từ khóa / Lĩnh vực (VD: AI, SaaS, Marketing, Tech, Fitness...)", placeholder="Nhập từ khóa hoặc lĩnh vực...", key="ch_filter_kw")
 
     if st.button("📊 Xem kênh nổi bật", type="primary", key="ch_run_btn", use_container_width=True):
         platform_filter = None if ch_platform == "(tất cả)" else ch_platform
@@ -516,6 +530,19 @@ def render_channel_tab():
     recs    = report.get("recommendations", [])
     region  = report.get("region", "?")
 
+    # Lọc theo từ khóa / lĩnh vực nếu người dùng nhập
+    if ch_kw.strip():
+        kw = ch_kw.strip().lower()
+        def _match_kw(ch):
+            cat = (ch.get("category") or "").lower()
+            desc = (ch.get("description") or "").lower()
+            name = (ch.get("channel_name") or ch.get("username") or "").lower()
+            s_goals = " ".join(ch.get("seller_info", {}).get("search_goals", []) if isinstance(ch.get("seller_info"), dict) else []).lower()
+            return kw in cat or kw in desc or kw in name or kw in s_goals
+
+        ranking = [ch for ch in ranking if _match_kw(ch)]
+        recs    = [ch for ch in recs if _match_kw(ch)]
+
     # ── Bảng xếp hạng ─────────────────────────────────────────────────────────
     st.write(f"### 🏆 Xếp hạng kênh — {region} ({len(ranking)} kênh)")
     if ranking:
@@ -538,29 +565,31 @@ def render_channel_tab():
 
         # ── Build display dataframe ────────────────────────────────────────────
         df_rank = pd.DataFrame([{
-            "#":        i + 1,
-            "Tier":     ch.get("tier", "?"),
-            "Tên kênh": ch.get("channel_name") or ch.get("username") or ch.get("channel_url", "?"),
-            "URL":      ch.get("channel_url", "#"),
-            "Platform": (ch.get("platform") or "?").upper(),
-            "Follower": ch.get("follower_count") or 0,
-            "CAS":      round(ch.get("cas", 0), 1),
-            "RCAS":     round(ch.get("rcas", 0), 1),
-            "Khu vực":  ch.get("region_tag") or ch.get("country") or "–",
+            "#":                  i + 1,
+            "Tier":               ch.get("tier", "?"),
+            "Tên kênh":           ch.get("channel_name") or ch.get("username") or ch.get("channel_url", "?"),
+            "Lĩnh vực / Từ khóa": ch.get("category") or (", ".join(ch.get("seller_info", {}).get("search_goals", [])) if isinstance(ch.get("seller_info"), dict) else "–") or "–",
+            "URL":                ch.get("channel_url", "#"),
+            "Platform":           (ch.get("platform") or "?").upper(),
+            "Follower":           ch.get("follower_count") or 0,
+            "CAS":                round(ch.get("cas", 0), 1),
+            "RCAS":               round(ch.get("rcas", 0), 1),
+            "Khu vực":            ch.get("region_tag") or ch.get("country") or "–",
         } for i, ch in enumerate(ranking)])
 
         st.dataframe(
-            df_rank[["#", "Tier", "Tên kênh", "URL", "Platform", "Follower", "CAS", "RCAS", "Khu vực"]],
+            df_rank[["#", "Tier", "Tên kênh", "Lĩnh vực / Từ khóa", "URL", "Platform", "Follower", "CAS", "RCAS", "Khu vực"]],
             use_container_width=True,
             height=min(500, 38 + 35 * len(df_rank)),
             column_config={
-                "#":        st.column_config.NumberColumn("#", width="small"),
-                "Tier":     st.column_config.TextColumn("Tier", width="medium"),
-                "Tên kênh": st.column_config.TextColumn("Tên kênh"),
-                "URL":      st.column_config.LinkColumn("🔗", display_text="Mở", width="small"),
-                "Follower": st.column_config.NumberColumn("Follower", format="%d"),
-                "CAS":      st.column_config.ProgressColumn("CAS",  min_value=0, max_value=100, format="%.1f"),
-                "RCAS":     st.column_config.ProgressColumn("RCAS", min_value=0, max_value=100, format="%.1f"),
+                "#":                  st.column_config.NumberColumn("#", width="small"),
+                "Tier":               st.column_config.TextColumn("Tier", width="medium"),
+                "Tên kênh":           st.column_config.TextColumn("Tên kênh"),
+                "Lĩnh vực / Từ khóa": st.column_config.TextColumn("Lĩnh vực / Từ khóa"),
+                "URL":                st.column_config.LinkColumn("🔗", display_text="Mở", width="small"),
+                "Follower":           st.column_config.NumberColumn("Follower", format="%d"),
+                "CAS":                st.column_config.ProgressColumn("CAS",  min_value=0, max_value=100, format="%.1f"),
+                "RCAS":               st.column_config.ProgressColumn("RCAS", min_value=0, max_value=100, format="%.1f"),
             },
         )
 
@@ -615,11 +644,14 @@ def render_channel_tab():
                     name = ch.get("channel_name") or ch.get("username") or "?"
                     url  = ch.get("channel_url", "#")
                     rcas = ch.get("rcas", 0)
+                    cat_disp = ch.get("category") or (", ".join(ch.get("seller_info", {}).get("search_goals", [])) if isinstance(ch.get("seller_info"), dict) else "")
+                    cat_tag = f" &nbsp;&nbsp; 🏷️ **{cat_disp[:35]}**" if cat_disp else ""
                     st.markdown(
                         f"**[{name}]({url})**\n\n"
                         f"`{(ch.get('platform') or '?').upper()}` &nbsp;&nbsp; "
                         f"{ch.get('tier', '?')} &nbsp;&nbsp; "
                         f"🌏 {ch.get('region_tag') or ch.get('country') or '?'}"
+                        f"{cat_tag}"
                     )
                     st.caption(
                         f"Follower: {ch.get('follower_count') or 0:,}  ·  "

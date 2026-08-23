@@ -34,6 +34,9 @@ def _client():
 
 def _parse_url(url: str) -> tuple[str, str]:
     """Trả về (id_type, value): 'id'|'forHandle'|'forUsername', value."""
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
     parsed = urlparse(url)
     path   = parsed.path.strip("/")
     if path.startswith("channel/"):

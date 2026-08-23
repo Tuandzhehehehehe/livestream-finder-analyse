@@ -1,0 +1,72 @@
+{
+  "goal": "sale",
+  "compiled_at": "2026-08-10T15:40:46",
+  "compiled_by": "gemini/gemini-2.5-flash",
+  "industries": [
+    "retail",
+    "e-commerce",
+    "fashion",
+    "electronics",
+    "home goods",
+    "automotive"
+  ],
+  "personas": [
+    "shopper",
+    "bargain hunter",
+    "consumer",
+    "deal seeker",
+    "buyer"
+  ],
+  "topics": [
+    "sale",
+    "sales event",
+    "discount",
+    "promotion",
+    "deal",
+    "bargain",
+    "clearance",
+    "special offer",
+    "shopping",
+    "flash sale",
+    "limited time offer",
+    "price drop",
+    "online shopping",
+    "auction"
+  ],
+  "search_queries": [
+    "live sale",
+    "livestream sale",
+    "online sale event",
+    "flash sale live",
+    "shopping live stream",
+    "deal event online",
+    "discount livestream",
+    "clearance live",
+    "special offer stream",
+    "product sale live",
+    "bargain hunting live",
+    "e-commerce live sale",
+    "retail sale online",
+    "upcoming sale event",
+    "live shopping deals",
+    "promotional livestream"
+  ],
+  "positive_keywords": [
+    "sale",
+    "sales",
+    "discount",
+    "deal",
+    "promotion",
+    "bargain",
+    "clearance",
+    "special offer",
+    "shopping",
+    "offer",
+    "flash sale",
+    "limited time",
+    "price drop",
+    "savings",
+    "reduced"
+  ],
+  "negative_keywords": []
+}

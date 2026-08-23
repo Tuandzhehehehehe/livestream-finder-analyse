@@ -1,0 +1,72 @@
+{
+  "goal": "valorant",
+  "compiled_at": "2026-08-20T23:13:00",
+  "compiled_by": "gemini/gemini-2.5-flash",
+  "industries": [
+    "gaming",
+    "esports",
+    "video games",
+    "live streaming",
+    "entertainment",
+    "interactive media"
+  ],
+  "personas": [
+    "gamer",
+    "esports fan",
+    "stream viewer",
+    "competitive player",
+    "content creator"
+  ],
+  "topics": [
+    "Valorant",
+    "FPS",
+    "tactical shooter",
+    "Riot Games",
+    "esports",
+    "gaming",
+    "competitive gaming",
+    "live gameplay",
+    "streamers",
+    "tournaments",
+    "matches",
+    "patch notes",
+    "agent guides",
+    "map strategy",
+    "valorant highlights"
+  ],
+  "search_queries": [
+    "Valorant live",
+    "Valorant livestream",
+    "Valorant stream",
+    "Valorant event",
+    "Valorant esports live",
+    "Valorant tournament live",
+    "Valorant gameplay live",
+    "Valorant matches live",
+    "Valorant pro play",
+    "Valorant online event",
+    "Valorant competitive stream",
+    "Riot Games Valorant live",
+    "FPS stream Valorant",
+    "Valorant update stream",
+    "Valorant news live",
+    "Valorant VCT live"
+  ],
+  "positive_keywords": [
+    "Valorant",
+    "esports",
+    "gaming",
+    "stream",
+    "live",
+    "tournament",
+    "match",
+    "gameplay",
+    "Riot Games",
+    "FPS",
+    "agent",
+    "pro player",
+    "competitive",
+    "Vanguard"
+  ],
+  "negative_keywords": []
+}

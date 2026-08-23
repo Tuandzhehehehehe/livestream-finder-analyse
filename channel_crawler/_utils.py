@@ -156,12 +156,6 @@ def with_retry(
     """
     Gọi fn(*args, **kwargs) với tự động retry khi gặp lỗi SSL/mạng.
     Dùng exponential backoff: 2s → 4s → 8s.
-
-    Args:
-        fn:          Hàm cần gọi
-        max_retries: Số lần thử lại tối đa (mặc định 3)
-        base_delay:  Delay cơ sở tính bằng giây (mặc định 2s)
-        label:       Prefix log để debug
     """
     last_exc: Exception | None = None
     for attempt in range(1, max_retries + 2):  # 1 lần thử + max_retries lần retry
@@ -172,8 +166,8 @@ def with_retry(
             if attempt <= max_retries and _is_transient_error(exc):
                 wait = base_delay * (2 ** (attempt - 1))  # 2, 4, 8 giây
                 tag = f"[{label}] " if label else ""
-                print(f"{tag}⚠ Lỗi SSL/mạng (lần {attempt}/{max_retries}): {exc}")
-                print(f"{tag}↻ Thử lại sau {wait:.0f}s...")
+                print(f"{tag}[WARN] Lỗi SSL/mạng (lần {attempt}/{max_retries}): {exc}")
+                print(f"{tag}[RETRY] Thử lại sau {wait:.0f}s...")
                 time.sleep(wait)
             else:
                 raise
@@ -191,14 +185,6 @@ def bulk_crawl(
 ) -> list[dict]:
     """
     Generic bulk crawl loop được dùng bởi tất cả *_channels_bulk functions.
-
-    Args:
-        crawl_fn:         hàm crawl đơn (url, **kwargs) → dict | None
-        urls:             danh sách URL
-        label:            prefix log (VD: "YouTube", "TikTok")
-        delay:            giây chờ giữa các request
-        retry:            số lần retry khi gặp lỗi SSL/mạng (mặc định 3)
-        retry_base_delay: delay cơ sở cho exponential backoff (mặc định 2s)
     """
     results = []
     total = len(urls)
@@ -213,15 +199,18 @@ def bulk_crawl(
                 **kwargs,
             )
         except Exception as e:
-            print(f"[{label}] ❌ Lỗi (đã thử {retry + 1} lần): {e}")
+            print(f"[{label}] [ERR] Lỗi (đã thử {retry + 1} lần): {e}")
             data = None
         if data:
             results.append(data)
             name = data.get("channel_name") or data.get("username") or url
             fc   = data.get("follower_count", 0)
-            print(f"[{label}] ✅ {name} — {fc:,}")
+            try:
+                print(f"[{label}] [OK] {name} — {fc:,}")
+            except Exception:
+                print(f"[{label}] [OK] {url} — {fc:,}")
         else:
-            print(f"[{label}] ⚠ Bỏ qua: {url}")
+            print(f"[{label}] [SKIP] Bỏ qua: {url}")
         if i < total and delay > 0:
             time.sleep(delay)
     return results
