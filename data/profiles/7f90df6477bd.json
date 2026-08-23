@@ -1,6 +1,6 @@
 {
   "goal": "Charity",
-  "compiled_at": "2026-07-23T14:56:33",
+  "compiled_at": "2026-08-10T23:04:46",
   "compiled_by": "groq/llama-3.3-70b-versatile",
   "industries": [
     "non-profit",
@@ -28,7 +28,7 @@
     "community service",
     "fundraising event",
     "charity run",
-    "charity walk"
+    "walkathon"
   ],
   "search_queries": [
     "charity live",
@@ -40,10 +40,12 @@
     "social impact event",
     "charity online",
     "live charity event",
-    "charity fundraising stream",
-    "online charity auction",
-    "charity run livestream",
-    "charity walk live"
+    "charity fundraiser",
+    "online charity stream",
+    "charity donation live",
+    "fundraising livestream",
+    "charity run live",
+    "walkathon livestream"
   ],
   "positive_keywords": [
     "charity",
@@ -53,8 +55,7 @@
     "volunteer",
     "philanthropy",
     "giving",
-    "social impact",
-    "community service"
+    "social impact"
   ],
   "negative_keywords": []
 }

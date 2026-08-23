@@ -1,0 +1,124 @@
+{
+  "timestamp": "2026-08-05T16:25:54.904040+00:00",
+  "goal": "AI in HR",
+  "duration_seconds": 152.94,
+  "compile_time_seconds": 0.0,
+  "platforms": [
+    "youtube",
+    "meetup",
+    "web",
+    "linkedin",
+    "x",
+    "tiktok"
+  ],
+  "overall_metrics": {
+    "total_raw_events": 10,
+    "total_dedup_events": 10,
+    "total_relevance_passed": 7,
+    "total_high_priority": 7,
+    "useful_leads_saved": 7,
+    "overall_dedup_rate": 0.0
+  },
+  "platform_breakdown": {
+    "youtube": {
+      "latency_seconds": 0.916,
+      "raw_count": 4,
+      "dedup_count": 4,
+      "valid_time_count": 4,
+      "scored_count": 3,
+      "avg_score": 54.0,
+      "high_priority_count": 3,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 4.37,
+      "error": null
+    },
+    "meetup": {
+      "latency_seconds": 2.044,
+      "raw_count": 2,
+      "dedup_count": 2,
+      "valid_time_count": 2,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.98,
+      "error": null
+    },
+    "web": {
+      "latency_seconds": 15.523,
+      "raw_count": 2,
+      "dedup_count": 2,
+      "valid_time_count": 2,
+      "scored_count": 2,
+      "avg_score": 68.0,
+      "high_priority_count": 2,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.13,
+      "error": null
+    },
+    "linkedin": {
+      "latency_seconds": 6.061,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.0,
+      "error": null
+    },
+    "x": {
+      "latency_seconds": 8.624,
+      "raw_count": 0,
+      "dedup_count": 0,
+      "valid_time_count": 0,
+      "scored_count": 0,
+      "avg_score": 0.0,
+      "high_priority_count": 0,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.0,
+      "error": null
+    },
+    "tiktok": {
+      "latency_seconds": 14.094,
+      "raw_count": 2,
+      "dedup_count": 2,
+      "valid_time_count": 2,
+      "scored_count": 2,
+      "avg_score": 78.0,
+      "high_priority_count": 2,
+      "medium_priority_count": 0,
+      "low_priority_count": 0,
+      "throughput_items_per_sec": 0.14,
+      "error": null
+    }
+  },
+  "token_metrics": {
+    "total_prompt_tokens": 7810,
+    "total_candidate_tokens": 2685,
+    "total_tokens_consumed": 10495,
+    "useful_tokens": 10495,
+    "wasted_tokens": 0,
+    "waste_breakdown": {
+      "low_relevance_waste": 0,
+      "duplicate_waste": 0,
+      "expired_time_waste": 0
+    },
+    "token_waste_percentage": 0.0,
+    "token_efficiency_percentage": 100.0,
+    "tokens_per_qualified_lead": 1499.3,
+    "category_breakdown": {
+      "classify": 3491,
+      "comment": 7004
+    },
+    "model_breakdown": {
+      "groq/llama-3.3-70b-versatile": 10495
+    }
+  }
+}

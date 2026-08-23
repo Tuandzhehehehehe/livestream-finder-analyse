@@ -1,0 +1,598 @@
+{
+  "timestamp": "2026-08-08T15:15:56.969131+00:00",
+  "evaluation_type": "Golden Dataset Benchmark (LLM-as-a-Judge)",
+  "benchmark_dataset": "data/golden_dataset.json",
+  "total_test_cases": 10,
+  "total_duration_seconds": 164.78,
+  "overall_benchmarks": {
+    "g_eval_judge_score": 69.6,
+    "ndcg_at_5": 0.871,
+    "ndcg_at_10": 0.871,
+    "mrr_mean_reciprocal_rank": 0.95,
+    "map_mean_average_precision": 0.968,
+    "spam_leakage_rate": 2.2,
+    "total_items_tested": 45
+  },
+  "test_case_breakdown": [
+    {
+      "test_id": "GOLDEN_001",
+      "goal": "AI in HR & Talent Acquisition",
+      "category": "Human Resources",
+      "latency_seconds": 30.2,
+      "items_retrieved": 3,
+      "ndcg_at_5": 0.808,
+      "ndcg_at_10": 0.808,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "AI IN HRM AI IN RECRUITMENT AND TALENT ACQUISITION",
+          "url": "https://youtube.com/watch?v=f8HsN7akfhk",
+          "channel": "La Plage Services",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 2,
+          "title": "AI in Recruitment and Talent Acquisition (HR)",
+          "url": "https://youtube.com/watch?v=lNLf-mPHnJI",
+          "channel": "DoItHow2",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 3,
+          "title": "AI Tools Every Recruiter Must Learn in 2026 | Hire Faster & Work Smarter",
+          "url": "https://youtube.com/watch?v=vnnsLA0Bmh8",
+          "channel": "USITRecruitment",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targets the right buyer persona, and offers potential for engagement, but lacks detailed description to maximize actionability points."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_002",
+      "goal": "B2B SaaS Founder & Seed Funding",
+      "category": "Venture Capital & SaaS",
+      "latency_seconds": 12.01,
+      "items_retrieved": 4,
+      "ndcg_at_5": 1.0,
+      "ndcg_at_10": 1.0,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "How to Validate Your B2B SaaS Startup Idea | Pre-Seed Founder Guide",
+          "url": "https://youtube.com/watch?v=TEhMY5tn4rQ",
+          "channel": "Forum Ventures",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to B2B SaaS founders and seed funding, offering valuable guidance and potential networking opportunities, despite lacking detailed description."
+        },
+        {
+          "rank": 2,
+          "title": "The 3 Phases of Go-To-Market (GTM) for B2B SaaS Startups | From Founder-Led Sales to Scalable Growth",
+          "url": "https://youtube.com/watch?v=lJiGeiSekZ4",
+          "channel": "Forum Ventures",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to B2B SaaS founders, offering valuable insights on go-to-market strategies, but lacks detailed information on seed funding."
+        },
+        {
+          "rank": 3,
+          "title": "How to Find Product-Market Fit for B2B SaaS Startups | Early-Stage Founder Guide",
+          "url": "https://youtube.com/watch?v=dzoTaq5nCzM",
+          "channel": "Forum Ventures",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to B2B SaaS founders and addresses a crucial aspect of their business, product-market fit, but lacks detailed information on seed funding."
+        },
+        {
+          "rank": 4,
+          "title": "How to Scale Your B2B SaaS Sales Motion | Go-To-Market Tips for Pre-Seed & Seed Startups",
+          "url": "https://youtube.com/watch?v=cOoPRm54NDQ",
+          "channel": "Forum Ventures",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to B2B SaaS founders and seed funding, offering valuable go-to-market tips and potential networking opportunities."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_003",
+      "goal": "Fintech & Open Banking API",
+      "category": "Financial Technology",
+      "latency_seconds": 11.97,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.844,
+      "ndcg_at_10": 0.844,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "What Is An Open Banking API In SaaS Finance? - All About SaaS Finance",
+          "url": "https://youtube.com/watch?v=eufPkRZbzA8",
+          "channel": "All About SaaS Finance",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 2,
+          "title": "What Is An Open Banking API? - Emerging Tech Insider",
+          "url": "https://youtube.com/watch?v=FSj_aplIu1U",
+          "channel": "Emerging Tech Insider",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 3,
+          "title": "How to start a open banking based fintech company A Step-by-Step Guide. By Global FinTech Academy.",
+          "url": "https://youtube.com/watch?v=Xo7gBRg_x_A",
+          "channel": "Global FinTech Academy",
+          "judge_score": 80.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about potential Q&A, networking, or business partnership opportunities."
+        },
+        {
+          "rank": 4,
+          "title": "How do APIs work in fintech?",
+          "url": "https://youtube.com/watch?v=atVsZmVSCPM",
+          "channel": "Creativeeye",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal, but lacks detailed description and information about the target audience and potential for engagement."
+        },
+        {
+          "rank": 5,
+          "title": "Why Open Banking Is the Future of Finance",
+          "url": "https://youtube.com/watch?v=-hzVY-svYLw",
+          "channel": "Fintech Pulse",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about the audience and potential for engagement."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_004",
+      "goal": "DevOps & Kubernetes Cloud Native",
+      "category": "Software Engineering",
+      "latency_seconds": 11.73,
+      "items_retrieved": 4,
+      "ndcg_at_5": 0.941,
+      "ndcg_at_10": 0.941,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "What is DevOps? Complete Guide to CI/CD, Docker, Kubernetes & Cloud",
+          "url": "https://youtube.com/watch?v=Bb704uADEx4",
+          "channel": "QllmSoft | Best Software Development Services",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 2,
+          "title": "What is Kubernetes? | DevOps VideoClips",
+          "url": "https://youtube.com/watch?v=P6LL9DRUKJc",
+          "channel": "ClickIT DevOps & Software Development",
+          "judge_score": 30.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal topic, but lacks information on its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 3,
+          "title": "What is Kubernetes? | Cloud-Native Container Orchestration Explained",
+          "url": "https://youtube.com/watch?v=laZK06Ivmwk",
+          "channel": "kl2217",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal topic, but lacks detailed information about the target audience and potential for engagement."
+        },
+        {
+          "rank": 4,
+          "title": "Cloud-native application development with Kubernetes",
+          "url": "https://youtube.com/watch?v=jd2AkexhSd4",
+          "channel": "Cubix Institute of Technology",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, actionability, and engagement potential."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_005",
+      "goal": "Cybersecurity Zero Trust Architecture",
+      "category": "Security",
+      "latency_seconds": 11.83,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.972,
+      "ndcg_at_10": 0.972,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "Five Core Principles of Zero Trust & Cloud Security | Why Zero Trust Is Essential for Cloud Security",
+          "url": "https://youtube.com/watch?v=AhVfjEWqOCA",
+          "channel": "Right Click",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about the audience and potential for engagement."
+        },
+        {
+          "rank": 2,
+          "title": "Zero Trust Explained in 4 mins",
+          "url": "https://youtube.com/watch?v=yn6CPQ9RioA",
+          "channel": "IBM Technology",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed description and engagement opportunities."
+        },
+        {
+          "rank": 3,
+          "title": "What is zero trust security?",
+          "url": "https://youtube.com/watch?v=tpBXSCMJXq4",
+          "channel": "TECHtalk",
+          "judge_score": 30.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal topic, but lacks information on its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 4,
+          "title": "Zero Trust Explained",
+          "url": "https://youtube.com/watch?v=PitpSDmUaXE",
+          "channel": "Microsoft Security",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed description to fully assess its business value and actionability potential."
+        },
+        {
+          "rank": 5,
+          "title": "What is Zero Trust Security? | The Future of Cyber Defense Explained",
+          "url": "https://youtube.com/watch?v=voGFtCxFx5w",
+          "channel": "NEWSWADE",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal topic, but lacks detailed information about the target audience and potential for engagement."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_006",
+      "goal": "Healthcare Tech & Telemedicine Compliance",
+      "category": "Healthcare & MedTech",
+      "latency_seconds": 11.22,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.948,
+      "ndcg_at_10": 0.948,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "HIPAA Compliance and Cybersecurity Precautions in Telemedicine",
+          "url": "https://youtube.com/watch?v=sIN7bT3oXws",
+          "channel": "Physician's Practice",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targeting professionals in healthcare tech and telemedicine, with potential for meaningful engagement, although the description lacks details on Q&A or networking opportunities."
+        },
+        {
+          "rank": 2,
+          "title": "Telemedicine Compliance in Spain Ethics, Consent, and Data Protection | Course Promo",
+          "url": "https://youtube.com/watch?v=ze7Ma_1eims",
+          "channel": "Spanish Compliance Institute",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal of healthcare tech and telemedicine compliance, but lacks detailed information on actionability and engagement potential."
+        },
+        {
+          "rank": 3,
+          "title": "Healthcare IT Summit- Compliance",
+          "url": "https://youtube.com/watch?v=fG__nKAv_U0",
+          "channel": "Painscript",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed description and engagement potential."
+        },
+        {
+          "rank": 4,
+          "title": "Telehealth Laws and Compliance Essentials Course",
+          "url": "https://youtube.com/watch?v=Q8d-vhegW1Y",
+          "channel": "US Compliance Institute",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targets the right persona, and offers potential for engagement, but lacks detailed information on Q&A or networking opportunities."
+        },
+        {
+          "rank": 5,
+          "title": "HIPAA Compliance Workflow",
+          "url": "https://youtube.com/watch?v=iOPl-0iB0HI",
+          "channel": "Telehealth.org, LLC",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information about its actionability and engagement potential."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_007",
+      "goal": "E-commerce Omnichannel & Supply Chain",
+      "category": "Retail & Logistics",
+      "latency_seconds": 11.62,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.811,
+      "ndcg_at_10": 0.811,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "Omnichannel Commerce & the Traditional Supply Chain",
+          "url": "https://youtube.com/watch?v=BG4ZT5qddYU",
+          "channel": "MD Logistics",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed description to fully assess its business value and actionability potential."
+        },
+        {
+          "rank": 2,
+          "title": "Course Trailer: Omnichannel Supply Chain Best Practice",
+          "url": "https://youtube.com/watch?v=CG3whRWYqUE",
+          "channel": "QA (Formerly Circus Street)",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal, but lacks detailed description and engagement opportunities, limiting its overall business value and actionability."
+        },
+        {
+          "rank": 3,
+          "title": "Multichannel & Omnichannel Marketing and Supply Chain Innovation",
+          "url": "https://youtube.com/watch?v=CE5NwZRvFXk",
+          "channel": "Dean Long",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 4,
+          "title": "Multi-Omni Channel Retail Supply Chains - An executive insight",
+          "url": "https://youtube.com/watch?v=Die8GOmDEHc",
+          "channel": "Cranfield School of Management",
+          "judge_score": 80.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targets the right buyer persona, but lacks detailed information on actionability and engagement potential."
+        },
+        {
+          "rank": 5,
+          "title": "What is Omni-Channel?",
+          "url": "https://youtube.com/watch?v=LtNte4AApXc",
+          "channel": "Let's Talk Supply Chain",
+          "judge_score": 30.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal topic, but lacks information on its business value, actionability, and engagement potential."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_008",
+      "goal": "Real-World Asset Tokenization on Blockchain",
+      "category": "Web3 & Institutional Crypto",
+      "latency_seconds": 11.34,
+      "items_retrieved": 4,
+      "ndcg_at_5": 0.803,
+      "ndcg_at_10": 0.803,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "RWA Tokenization Explained | The Future of Real-World Assets on Blockchain #RWA #defi",
+          "url": "https://youtube.com/watch?v=btTkVUqjPQk",
+          "channel": "faixal_abbaci",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, buyer persona match, and actionability potential."
+        },
+        {
+          "rank": 2,
+          "title": "Real-World Asset Tokenization Explained Simply | Synor Crypto",
+          "url": "https://youtube.com/watch?v=We4_9e6Pgmg",
+          "channel": "Synor",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, buyer persona match, and actionability potential."
+        },
+        {
+          "rank": 3,
+          "title": "The Rise of Real Asset Tokenization | The Future of RWA Infrastructure",
+          "url": "https://youtube.com/watch?v=PlD8MYGB5Ws",
+          "channel": "RWAHUB",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, appears to target professional founders or executives, and has potential for meaningful engagement, but lacks detailed description to fully assess actionability."
+        },
+        {
+          "rank": 4,
+          "title": "Tokenization Platform Development - Launch Your Own Asset Tokenization Platform",
+          "url": "https://youtube.com/watch?v=bqoOK0DZFsI",
+          "channel": "Blocktech Brew - Web3 Development Company",
+          "judge_score": 80.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, appears to target the right buyer persona, and has potential for engagement, but lacks detailed information in its description."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_009",
+      "goal": "Data Engineering with dbt and Snowflake",
+      "category": "Data & Analytics",
+      "latency_seconds": 11.74,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.87,
+      "ndcg_at_10": 0.87,
+      "mrr": 1.0,
+      "average_precision": 1.0,
+      "items": [
+        {
+          "rank": 1,
+          "title": "Snowflake Data Engineering + DBT Online training - +91 70100 80468",
+          "url": "https://youtube.com/watch?v=dvT7mxDZ19U",
+          "channel": "NIC IT ACADEMY",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal, but lacks detailed description and seems more like a generic training session rather than a high-value webinar or conference."
+        },
+        {
+          "rank": 2,
+          "title": "Hands On DBT with ELT Project Pipeline using Snowflake (2026 Full Guide)",
+          "url": "https://youtube.com/watch?v=gv-hBsNR8b8",
+          "channel": "Tutorialytics",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, appears to target professional data engineers, and offers hands-on experience, but lacks information on Q&A or networking opportunities."
+        },
+        {
+          "rank": 3,
+          "title": "Chat-based analytics in Snowflake using dbt Semantic Layer and Cortex",
+          "url": "https://youtube.com/watch?v=C_K2bDa3XSg",
+          "channel": "dbt Labs",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targeting the right audience, but lacks detailed information on actionability and engagement potential."
+        },
+        {
+          "rank": 4,
+          "title": "How to Build an ELT Pipeline with DBT (2026 Full Guide)",
+          "url": "https://youtube.com/watch?v=y-tXYc-Aq0U",
+          "channel": "Tutorialytics",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks information on its business value, actionability, and engagement potential."
+        },
+        {
+          "rank": 5,
+          "title": "What is dbt?",
+          "url": "https://youtube.com/watch?v=rItxGK0cYj8",
+          "channel": "dbt Labs",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed description and engagement opportunities, hence a moderate score."
+        }
+      ]
+    },
+    {
+      "test_id": "GOLDEN_010",
+      "goal": "Enterprise LLM Deployment & RAG Architecture",
+      "category": "Artificial Intelligence",
+      "latency_seconds": 13.31,
+      "items_retrieved": 5,
+      "ndcg_at_5": 0.71,
+      "ndcg_at_10": 0.71,
+      "mrr": 0.5,
+      "average_precision": 0.679,
+      "items": [
+        {
+          "rank": 1,
+          "title": "20 HOURS to Become an AI Agent Engineer 🚀 | Complete Python + AI Agents Study Stream(recorded)",
+          "url": "https://youtube.com/watch?v=0e-l-TwIIbw",
+          "channel": "NitMonk",
+          "judge_score": 0.0,
+          "is_relevant": false,
+          "is_spam": true,
+          "critique": "The discovered event is completely unrelated to the target search goal of Enterprise LLM Deployment & RAG Architecture and appears to be a generic AI/Python tutorial."
+        },
+        {
+          "rank": 2,
+          "title": "RAG Architecture for Enterprise: Build AI That Actually Knows Your Business",
+          "url": "https://youtube.com/watch?v=qQHqy7uhNtA",
+          "channel": "Technijian",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targeting the right audience, but lacks detailed information on actionability and engagement potential."
+        },
+        {
+          "rank": 3,
+          "title": "RAG Explained for Enterprise AI in 2 Minutes",
+          "url": "https://youtube.com/watch?v=2Chfk7lswso",
+          "channel": "BotsCrew",
+          "judge_score": 60.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is relevant to the target search goal, but lacks detailed description and engagement opportunities, limiting its overall business value and actionability."
+        },
+        {
+          "rank": 4,
+          "title": "Build LLM Workflow Engines with LangChain, OpenAI & Vector DBs | Enterprise AI Automation",
+          "url": "https://youtube.com/watch?v=hk7gOv3lgDQ",
+          "channel": "Agix Technologies",
+          "judge_score": 90.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, targeting professional founders and executives with a focus on enterprise LLM deployment and workflow automation."
+        },
+        {
+          "rank": 5,
+          "title": "How to Build an AI Architecture: Meta-Prompting, RAG & Local LLMs (2026 Guide)",
+          "url": "https://youtube.com/watch?v=4ZcHFhgA-q4",
+          "channel": "Learn AI with Donda",
+          "judge_score": 70.0,
+          "is_relevant": true,
+          "is_spam": false,
+          "critique": "The event is highly relevant to the target search goal, but lacks detailed information on its business value and actionability potential."
+        }
+      ]
+    }
+  ]
+}

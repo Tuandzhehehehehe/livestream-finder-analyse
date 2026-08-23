@@ -23,3 +23,46 @@
 2026-07-20 22:49:51,671 [INFO]   ✅ Goal 'Tokenization livestream': 19 mới, 1 bỏ qua
 
 2026-07-20 22:49:51,671 [INFO] 🏁 Hoàn tất: 19 event mới, 1 bỏ qua, 0 lỗi
+2026-08-05 23:23:34,904 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-05 23:24:28,849 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-05 23:24:28,888 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] 5/08/26 | Druid Tests Seasonal: Bad Tarkov Raids f
+2026-08-05 23:24:28,918 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] 🔴Rech On | Back to Grove Street! – GTA San Andreas
+2026-08-05 23:24:28,932 [INFO]   📡 AutoChannel: 0 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 2, "skipped": 0, "total_found": 2, "status": "ok", "timestamp": "2026-08-05T16:24:28.932628+00:00"}
+2026-08-05 23:24:28,935 [INFO]   ✅ Goal 'Charity': 2 mới, 0 bỏ qua
+
+2026-08-05 23:24:28,935 [INFO] 🏁 Hoàn tất: 2 event mới, 0 bỏ qua, 0 lỗi
+2026-08-05 23:25:31,732 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-05 23:26:37,925 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-05 23:26:58,065 [INFO]   📡 AutoChannel: 0 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 0, "skipped": 2, "total_found": 2, "status": "ok", "timestamp": "2026-08-05T16:26:58.065986+00:00"}
+2026-08-05 23:26:58,067 [INFO]   ✅ Goal 'Charity': 0 mới, 2 bỏ qua
+
+2026-08-05 23:26:58,067 [INFO] 🏁 Hoàn tất: 0 event mới, 2 bỏ qua, 0 lỗi
+2026-08-08 16:49:01,207 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-08 16:49:44,663 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-08 16:49:47,119 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] 🎮 LIVE Minecraft for Assam Flood Relief ❤️🌊 | Char
+2026-08-08 16:49:48,802 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] The Great LEGO London Challenge LIVE FOR CHARITY!
+2026-08-08 16:50:02,153 [INFO]   📡 AutoChannel: 0 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 2, "skipped": 0, "total_found": 2, "status": "ok", "timestamp": "2026-08-08T09:50:02.154458+00:00"}
+2026-08-08 16:50:02,156 [INFO]   ✅ Goal 'Charity': 2 mới, 0 bỏ qua
+
+2026-08-08 16:50:02,156 [INFO] 🏁 Hoàn tất: 2 event mới, 0 bỏ qua, 0 lỗi
+2026-08-08 16:50:29,607 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-08 16:50:54,112 [INFO]   → Tìm được 2 event (sau filter/score)
+2026-08-08 16:51:11,551 [INFO]   📡 AutoChannel: 2 kênh mới | 0 đã có
+{"goal": "Charity", "new_events": 0, "skipped": 2, "total_found": 2, "status": "ok", "timestamp": "2026-08-08T09:51:11.551613+00:00"}
+2026-08-08 16:51:11,553 [INFO]   ✅ Goal 'Charity': 0 mới, 2 bỏ qua
+
+2026-08-08 16:51:11,553 [INFO] 🏁 Hoàn tất: 0 event mới, 2 bỏ qua, 0 lỗi
+2026-08-08 21:05:34,328 [INFO] ▶ Crawling goal: 'Charity'
+2026-08-08 21:06:01,196 [INFO]   → Tìm được 5 event (sau filter/score)
+2026-08-08 21:06:05,249 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] FINAL Pokopia Bubbly Basin CHARITY Stream, @SU2C
+2026-08-08 21:06:06,874 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] EP 25. Sulphur and Testing [!hardmode 25x] | Extra
+2026-08-08 21:06:08,308 [INFO]   ✔ Lưu: [YouTube] [Score: 90 | Priority: High] mummy charity ufomba is live!
+2026-08-08 21:06:09,813 [INFO]   ✔ Lưu: [YouTube] [Score: 60 | Priority: Medium] The 1st Annual Misti Media Book Fair
+2026-08-08 21:06:35,625 [INFO]   📡 AutoChannel: 0 kênh mới | 1 đã có
+{"goal": "Charity", "new_events": 4, "skipped": 1, "total_found": 5, "status": "ok", "timestamp": "2026-08-08T14:06:35.625566+00:00"}
+2026-08-08 21:06:35,627 [INFO]   ✅ Goal 'Charity': 4 mới, 1 bỏ qua
+
+2026-08-08 21:06:35,627 [INFO] 🏁 Hoàn tất: 4 event mới, 1 bỏ qua, 0 lỗi

@@ -39,7 +39,7 @@ print("=" * 60)
 updated_count = 0
 from services.ai_crawl_tool import infer_event_status
 
-from services.relevance_filter import calculate_relevance
+from ai.spam_classifier import calculate_relevance
 
 for row in rows:
     event = dict(row)

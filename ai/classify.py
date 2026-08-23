@@ -1,81 +1,80 @@
 """
-ai/classify.py — AI Event Classifier & Rule-based Fallback
+ai/classify.py — AI Event Classifier & NLP Fallback Engine
 ===========================================================
-Analyzes event title and description via LLM or rule-based fallback.
+Phân loại sự kiện livestream bằng mô hình LLM (Gemini / Groq / OpenAI)
+hoặc suy luận tự động qua mô hình Semantic Embedding (MiniLM) khi offline.
+Không sử dụng bất kỳ từ điển tĩnh hay danh sách hardcode nào.
 """
 
 import json
-import re
+from typing import Dict, Any
+from ai.llm_client import generate, extract_json
 
 
-PERSONA_MAP = [
-    (["startup", "founder", "ceo", "entrepreneur"], "Startup", "Founder, CEO", "Chủ động hỏi về chiến lược phát triển hoặc nhu cầu hợp tác."),
-    (["recruitment", "hr", "hiring"], "Recruitment", "Recruiter, HR Manager", "Hỏi về thách thức tuyển dụng và tìm kiếm tài năng phù hợp."),
-    (["charity", "fundraising", "nonprofit"], "Charity", "Organization Manager", "Đề cập đến cơ hội gây quỹ hoặc hợp tác cộng đồng."),
-    (["marketing", "sales"], "Sales & Marketing", "Business Decision Maker", "Consider joining and comment on a useful insight to connect."),
-]
+def fallback_classify(title: str, description: str = "", goal: str = "") -> Dict[str, Any]:
+    """
+    Phân loại dự phòng hoàn toàn tự động bằng NLP & Semantic Embeddings
+    khi không kết nối được LLM API (không dùng từ khóa tĩnh).
+    """
+    clean_title = str(title or "").strip()
+    clean_desc = str(description or "").strip()
+    clean_goal = str(goal or "General Business & Networking").strip()
 
-BUSINESS_KEYWORDS = {
-    "startup", "founder", "ceo", "cto", "saas", "crm", "business", "marketing",
-    "sales", "fintech", "recruitment", "hr", "charity", "nonprofit", "fundraising",
-    "investor", "entrepreneur", "webinar", "conference", "summit", "networking"
-}
+    # 1. Dự đoán mức độ liên quan bằng mô hình MiniLM Semantic Embedding
+    from ai.minilm_scorer import compute_minilm_score
+    from ai.spam_classifier import predict_spam
 
-
-def fallback_classify(title: str, description: str, goal: str = "") -> dict:
-    text = f"{title} {description}".lower()
-    score = 40 if goal else 20
-    industry = goal.title() if goal else "General"
-    buyer_persona = "Unknown"
-    interaction_tip = "Ask a clarifying question to understand their goals."
-
-    if goal:
-        stop_words = {"livestream", "livestreams", "tìm", "kiếm", "ở", "về", "cho", "và", "and", "with", "the", "a", "an", "in", "on", "to", "for"}
-        goal_words = [w for w in re.findall(r'[a-zA-Z0-9]+', goal.lower()) if len(w) > 2 and w not in stop_words]
-        for w in goal_words:
-            if w in text:
-                score += 15
-
-    for keyword in BUSINESS_KEYWORDS:
-        if keyword in text:
-            score += 8
-
-    score = min(score, 100)
-
-    for keywords, ind, persona, tip in PERSONA_MAP:
-        if any(k in text for k in keywords):
-            industry = ind
-            buyer_persona = persona
-            interaction_tip = tip
-            break
+    is_spam, _ = predict_spam(clean_title, clean_desc)
+    if is_spam:
+        score = 0
+    else:
+        score = int(compute_minilm_score(clean_title, clean_desc, [clean_goal]))
 
     priority = "High" if score >= 80 else ("Medium" if score >= 50 else "Low")
 
+    # 2. Xác định Persona và Industry động từ Goal của người dùng
+    industry = clean_goal.title() if clean_goal else "General"
+    buyer_persona = f"{clean_goal} Decision Maker" if clean_goal else "Professional"
+    interaction_tip = f"Engage with a specific question regarding {clean_goal}."
+
     return {
         "industry": industry,
-        "language": "English",
+        "language": "Auto-detected",
         "buyer_persona": buyer_persona,
         "score": score,
         "priority": priority,
         "interaction_tip": interaction_tip,
-        "reason": "Fallback scoring used because LLM was unavailable.",
-        "suggested_comment": "Interesting point, could you expand on that a little more?",
+        "reason": f"Semantic similarity score: {score}/100 with target goal '{clean_goal}'.",
+        "suggested_comment": f"Great insights on this topic. Could you share more practical use-cases regarding {clean_goal}?",
     }
 
 
-def classify_event(title: str, description: str, goal: str = "") -> dict:
-    from ai.llm_client import generate, extract_json
-
-    desc_snippet = description[:500] + "..." if description and len(description) > 500 else (description or "")
+def classify_event(title: str, description: str = "", goal: str = "") -> Dict[str, Any]:
+    """
+    Phân loại sự kiện livestream bằng mô hình LLM (Gemini / Groq LLaMA / OpenAI).
+    Tự động fallback sang MiniLM Embedding khi mất kết nối.
+    """
+    clean_title = str(title or "").strip()
+    clean_desc = str(description or "").strip()
+    clean_goal = str(goal or "General business & networking").strip()
+    desc_snippet = clean_desc[:500] + "..." if len(clean_desc) > 500 else clean_desc
 
     prompt = f"""Analyze this livestream event for relevance to a target goal.
-Goal: {goal if goal else "General business & networking"}
-Title: {title}
+Goal: {clean_goal}
+Title: {clean_title}
 Description: {desc_snippet}
 
-Return ONLY valid JSON:
-{{"industry":"", "language":"", "buyer_persona":"", "score":0, "reason":"", "suggested_comment":""}}
-Note: "score" MUST be an integer from 0 to 100 representing relevance to the Goal (e.g. 85 for highly relevant, 20 for irrelevant)."""
+Return ONLY valid JSON in format:
+{{
+  "industry": "Specific industry of event",
+  "language": "Language spoken (e.g. English, Vietnamese)",
+  "buyer_persona": "Target audience persona (e.g. Founder, HR Manager, Engineer)",
+  "score": 85,
+  "interaction_tip": "Actionable tip for how to interact in chat",
+  "reason": "Brief reason for the score",
+  "suggested_comment": "A natural, non-generic comment to post in live chat"
+}}
+Note: "score" MUST be an integer from 0 to 100 representing relevance to the Goal."""
 
     try:
         response = generate(prompt, category="classify")
@@ -83,16 +82,16 @@ Note: "score" MUST be an integer from 0 to 100 representing relevance to the Goa
         result = json.loads(text)
 
         score_val = int(result.get("score", 0))
-        # Nâng thang điểm 1-10 lên 10-100 nếu LLM trả về thang 1-10
+        # Nâng thang điểm 1-10 lên 10-100 nếu LLM trả về thang điểm 10
         if 0 < score_val <= 10:
             score_val = score_val * 10
             result["score"] = score_val
 
         result["priority"] = "High" if score_val >= 80 else ("Medium" if score_val >= 50 else "Low")
-        if "interaction_tip" not in result:
-            result["interaction_tip"] = "Join with a relevant question or comment."
+        if not result.get("interaction_tip"):
+            result["interaction_tip"] = f"Join chat with a relevant question about {clean_goal}."
 
         return result
     except Exception as e:
-        print(f"[AI Classify] Error: {e}")
-        return fallback_classify(title, description, goal)
+        print(f"[AI Classify] LLM API notice: {e} -> Running NLP Semantic Fallback...")
+        return fallback_classify(clean_title, clean_desc, clean_goal)

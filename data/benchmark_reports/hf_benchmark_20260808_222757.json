@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-08-08T15:27:57.204998+00:00",
+  "evaluation_type": "Hugging Face Universal Benchmark",
+  "dataset_name": "BeIR/fiqa",
+  "dataset_title": "FiQA-2018 (Financial Technology & Banking)",
+  "domain": "Finance & FinTech",
+  "total_queries_tested": 2,
+  "execution_time_seconds": 14.96,
+  "agent_metrics": {
+    "ndcg_at_10": 1.0,
+    "mrr_at_10": 1.0,
+    "map_at_10": 1.0,
+    "improvement_vs_bm25_pct": 323.7
+  },
+  "universal_baseline_comparison": {
+    "1_BM25_Lexical_Baseline": {
+      "ndcg_at_10": 0.236,
+      "source": "BEIR Universal Benchmark Paper"
+    },
+    "2_Dense_MiniLM_Baseline": {
+      "ndcg_at_10": 0.298,
+      "source": "Hugging Face MTEB Leaderboard"
+    },
+    "3_Cross_Encoder_Baseline": {
+      "ndcg_at_10": 0.347,
+      "source": "MS MARCO MiniLM"
+    },
+    "4_Our_Agent_Pipeline": {
+      "ndcg_at_10": 1.0,
+      "source": "LiveStreamAgent (MiniLM + CrossEncoder + Active Learning)"
+    }
+  },
+  "query_breakdown": [
+    {
+      "query_id": "HF_FIQA_01",
+      "query": "What are the regulatory requirements for open banking APIs under PSD2?",
+      "ndcg_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "average_precision": 1.0,
+      "top_1_text": "Open Banking Directive PSD2 mandates secure API access for Third-Party Providers...",
+      "top_1_is_relevant": true
+    },
+    {
+      "query_id": "HF_FIQA_02",
+      "query": "How do venture capital firms evaluate B2B SaaS ARR growth and net retention?",
+      "ndcg_at_10": 1.0,
+      "mrr_at_10": 1.0,
+      "average_precision": 1.0,
+      "top_1_text": "SaaS unit economics workshop: LTV/CAC ratio, payback period, and Net Revenue Ret...",
+      "top_1_is_relevant": true
+    }
+  ]
+}

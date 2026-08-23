@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-08-08T15:28:35.746504+00:00",
+  "evaluation_type": "Hugging Face Universal Benchmark",
+  "dataset_name": "BeIR/fiqa",
+  "dataset_title": "FiQA-2018 (Financial Technology & Banking)",
+  "domain": "Finance & FinTech",
+  "total_queries_tested": 2,
+  "execution_time_seconds": 13.01,
+  "agent_metrics": {
+    "ndcg_at_10": 0.631,
+    "mrr_at_10": 0.5,
+    "map_at_10": 0.5,
+    "improvement_vs_bm25_pct": 167.4
+  },
+  "universal_baseline_comparison": {
+    "1_BM25_Lexical_Baseline": {
+      "ndcg_at_10": 0.236,
+      "source": "BEIR Universal Benchmark Paper"
+    },
+    "2_Dense_MiniLM_Baseline": {
+      "ndcg_at_10": 0.298,
+      "source": "Hugging Face MTEB Leaderboard"
+    },
+    "3_Cross_Encoder_Baseline": {
+      "ndcg_at_10": 0.347,
+      "source": "MS MARCO MiniLM"
+    },
+    "4_Our_Agent_Pipeline": {
+      "ndcg_at_10": 0.631,
+      "source": "LiveStreamAgent (MiniLM + CrossEncoder + Active Learning)"
+    }
+  },
+  "query_breakdown": [
+    {
+      "query_id": "HF_001",
+      "query": "What is considered a business expense on a business trip?",
+      "ndcg_at_10": 0.631,
+      "mrr_at_10": 0.5,
+      "average_precision": 0.5,
+      "top_1_text": "Generic noise document....",
+      "top_1_is_relevant": false
+    },
+    {
+      "query_id": "HF_002",
+      "query": "Business Expense - Car Insurance Deductible For Accident That Occurred During a Business Trip",
+      "ndcg_at_10": 0.631,
+      "mrr_at_10": 0.5,
+      "average_precision": 0.5,
+      "top_1_text": "Generic noise document....",
+      "top_1_is_relevant": false
+    }
+  ]
+}
