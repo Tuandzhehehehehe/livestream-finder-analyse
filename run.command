@@ -1,41 +1,43 @@
 #!/bin/bash
 # ==============================================================================
-# runProject.command — Double-click launcher for macOS
+# run.command — Double-Click 1-Click Launcher for macOS
 # ==============================================================================
 
-# Chuyển đến thư mục chứa file script
+# 1. Chuyển đến thư mục chứa file script
 cd "$(dirname "$0")" || exit 1
 
-# Vô hiệu hóa macOS AppleDouble metadata file trên drive ngoài/mạng
+# Vô hiệu hóa file rác AppleDouble trên drive mạng/ngoài
 export COPYFILE_DISABLE=1
 find . -name "._*" -delete 2>/dev/null || true
 
 echo "========================================================================"
-echo "      🚀 AI LIVESTREAM FINDER & AGENT EVALUATOR (macOS LAUNCHER)"
+echo "      🚀 AI LIVESTREAM FINDER & AGENT EVALUATOR (macOS Launcher)"
 echo "========================================================================"
 echo ""
 
-# 1. Kiểm tra Python 3
+# 2. Kiểm tra Python 3
 if ! command -v python3 &> /dev/null; then
-    echo "❌ [LỖI] Không tìm thấy Python 3 trên máy tính của bạn!"
-    echo "   Vui lòng tải và cài đặt Python 3 từ https://www.python.org/downloads/"
+    echo "❌ [LỖI] Không tìm thấy python3 trên máy tính của bạn!"
+    echo "   Vui lòng tải và cài đặt Python 3 từ: https://www.python.org/downloads/"
     echo ""
     read -p "Nhấn Enter để thoát..."
     exit 1
 fi
 
+# 3. Chọn thư mục môi trường ảo tương thích macOS (tránh xung đột với venv của Windows)
 VENV_DIR=".venv_mac"
-if [ ! -d "$VENV_DIR" ] && [ -d ".venv" ]; then
+if [ -f ".venv/bin/python3" ] || [ -f ".venv/bin/python" ]; then
     VENV_DIR=".venv"
 fi
 
-# 2. Tạo môi trường ảo nếu chưa có
-if [ ! -d "$VENV_DIR" ]; then
-    echo "⚙️ [THÔNG BÁO] Đang khởi tạo môi trường ảo $VENV_DIR..."
+# Tạo môi trường ảo macOS nếu chưa có
+if [ ! -f "$VENV_DIR/bin/python" ] && [ ! -f "$VENV_DIR/bin/python3" ]; then
+    echo "⚙️ [THÔNG BÁO] Đang khởi tạo môi trường ảo $VENV_DIR cho macOS..."
+    rm -rf "$VENV_DIR" 2>/dev/null || true
     python3 -m venv "$VENV_DIR"
 fi
 
-# 3. Kiểm tra và cài đặt thư viện
+# 4. Kiểm tra và cài đặt thư viện phụ thuộc
 if [ ! -f "$VENV_DIR/.installed" ]; then
     echo "📦 [THÔNG BÁO] Đang cài đặt thư viện và trình duyệt Playwright Chromium..."
     "$VENV_DIR/bin/pip" install --upgrade pip
@@ -46,7 +48,7 @@ if [ ! -f "$VENV_DIR/.installed" ]; then
     echo ""
 fi
 
-# 4. Kiểm tra file .env
+# 5. Kiểm tra file .env
 if [ ! -f ".env" ]; then
     echo "⚠️ [CẢNH BÁO] Chưa có file .env. Đang tạo file mẫu..."
     cat <<EOT > .env
@@ -60,14 +62,17 @@ EOT
     echo ""
 fi
 
-# 5. Khởi chạy Streamlit Dashboard
+# 6. Khởi chạy Streamlit Dashboard
 echo "========================================================================"
 echo "🎯 Đang khởi chạy giao diện Web Dashboard trên trình duyệt..."
 echo "========================================================================"
 echo ""
 
-# Mở trình duyệt web sau 1.5s
-(sleep 1.5 && open "http://localhost:8501/") &
+# Tự động mở trình duyệt sau 1.5 giây
+(sleep 1.5 && open "http://localhost:8501/" 2>/dev/null) &
 
 # Chạy ứng dụng Streamlit
 "$VENV_DIR/bin/streamlit" run dashboard/streamlit_app.py
+
+echo ""
+read -p "Nhấn Enter để đóng cửa sổ..."

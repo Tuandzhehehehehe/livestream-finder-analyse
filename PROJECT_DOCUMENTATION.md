@@ -197,8 +197,16 @@ Hệ thống cung cấp khung sát hạch toàn diện 3 cấp độ:
 ```
 
 1. **4 Trụ Cột Kỹ Thuật ([`services/benchmarker.py`](file:///Volumes/Shared/File%20for%20Google%20Drive%20real/Project/LiveStreamAgentEvaluator/livestream-finder-analyse/services/benchmarker.py)):**
-   - **Pillar 1: Hiệu năng Scraper (Playwright Performance):** `Live Precision Rate` (tỷ lệ bắt đúng livestream không lẫn video tĩnh), `Field Completeness` (độ đầy đủ các trường dữ liệu), `Throughput` (tốc độ bóc tách items/giây), `Average Latency`.
-   - **Pillar 2: Chất Lượng Phù Hợp & AI (Relevance Quality):** `Precision@5`, `Precision@10`, `Spam Leakage Rate` (tỷ lệ lọt rác), `MRR` (Mean Reciprocal Rank - vị trí của kết quả chuẩn đầu tiên), `Status Accuracy`.
+   - **Pillar 1: Hiệu năng Scraper & Nhận Diện Live (Playwright Live Detection):**
+     - $\text{Live Precision} = \frac{\text{TP}_{\text{live}}}{\text{TP}_{\text{live}} + \text{FP}_{\text{live}}} \times 100\%$ *(Tỷ lệ bắt đúng livestream/upcoming không bị lẫn video tĩnh)*
+     - $\text{Live Recall} = \frac{\text{TP}_{\text{live}}}{\text{TP}_{\text{live}} + \text{FN}_{\text{live}}} \times 100\%$ *(Độ phủ số lượng livestream tìm được so với chỉ tiêu)*
+     - $\text{Live F1-Score} = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}$ *(Điểm điều hòa cân bằng giữa độ chính xác và độ phủ)*
+     - `Field Completeness` (độ đầy đủ các trường dữ liệu), `Throughput` (tốc độ bóc tách items/giây), `Average Latency`.
+   - **Pillar 2: Chất Lượng Phù Hợp & AI (Relevance & Lead Quality):**
+     - $\text{Relevance Precision} = \frac{\text{TP}_{\text{rel}}}{\text{TP}_{\text{rel}} + \text{FP}_{\text{rel}}} \times 100\%$ *(Tỷ lệ lead thực sự khớp mục tiêu)*
+     - $\text{Relevance Recall} = \frac{\text{TP}_{\text{rel}}}{\text{TP}_{\text{rel}} + \text{FN}_{\text{rel}}} \times 100\%$ *(Độ thu hồi lead tiềm năng)*
+     - $\text{Relevance F1-Score} = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Precision} + \text{Recall}}$ *(Điểm F1 đánh giá chất lượng phân loại)*
+     - `Precision@5`, `Precision@10`, `Spam Leakage Rate` (tỷ lệ lọt rác), `MRR` (Mean Reciprocal Rank - vị trí của kết quả chuẩn đầu tiên).
    - **Pillar 3: Kinh Tế Token & Tiết Kiệm (Token Economy):** Đo lường chi tiết lượng token hữu ích vs token bị lãng phí do crawl trùng lặp, lọc thời gian hoặc chấm điểm sự kiện rác; tính `Token Efficiency %` và `Tokens / Useful Lead`.
    - **Pillar 4: Tính Hành Động Của Lead (Actionability):** `High Priority Ratio`, `Average Lead Score`.
 2. **Ban Giám Khảo AI Độc Lập (Third-Party LLM-as-a-Judge / G-Eval - [`ai/judge_evaluator.py`](file:///Volumes/Shared/File%20for%20Google%20Drive%20real/Project/LiveStreamAgentEvaluator/livestream-finder-analyse/ai/judge_evaluator.py)):**
@@ -443,8 +451,10 @@ livestream-finder-analyse/
 ├── eval_agent_benchmark.py            # Script CLI chạy bài thi sát hạch Agent
 ├── track_tokens.py                    # Script CLI theo dõi lượng tiêu thụ token theo thời gian thực
 ├── Benchmark_Analysis.ipynb           # Jupyter Notebook phân tích sâu toàn bộ dữ liệu đánh giá
-├── requirements.txt                   # Danh sách thư viện phụ thuộc của dự án
-└── runProject.command / runProject.bat# File khởi chạy nhanh toàn bộ dự án bằng 1 click
+├── run.command                        # 🍎 File nhấp đúp (Double-click) tự động chạy trên macOS
+├── run.bat                            # 🪟 File nhấp đúp (Double-click) tự động chạy trên Windows
+├── run.sh                             # 🐧 Script chạy trên terminal Linux / macOS
+└── requirements.txt                   # Danh sách thư viện phụ thuộc Python
 ```
 
 ---
@@ -503,7 +513,7 @@ python -m crawler.session_login tiktok
 # Khởi chạy ứng dụng web Streamlit
 streamlit run dashboard/streamlit_app.py
 ```
-*Hoặc trên macOS, nhấp đúp vào file `runProject.command` (trên Windows nhấp đúp vào `runProject.bat`).*
+*Hoặc trên macOS nhấp đúp vào file `run.command` (trên Windows nhấp đúp vào `run.bat`).*
 
 #### Cách 2: Chạy Benchmark & Sát hạch Agent qua CLI
 ```bash

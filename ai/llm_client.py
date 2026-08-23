@@ -94,9 +94,12 @@ def _try_groq(prompt: str, category: str = "general") -> Optional[LLMResponse]:
         from groq import Groq
         client = Groq(api_key=api_key)
         models = [
-            "llama-3.3-70b-versatile",   # Free, excellent quality
-            "llama-3.1-8b-instant",       # Free, fast
-            "llama-3.2-3b-preview",       # Free, fast preview
+            "openai/gpt-oss-120b",
+            "qwen/qwen3.6-27b",
+            "openai/gpt-oss-20b",
+            "groq/compound",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
         ]
         for model in models:
             try:
@@ -114,11 +117,10 @@ def _try_groq(prompt: str, category: str = "general") -> Optional[LLMResponse]:
                 return LLMResponse(text, "groq", model)
             except Exception as e:
                 err = str(e)
+                print(f"[LLM] Groq/{model} error: {e}, trying next model...")
                 if "rate_limit" in err.lower() or "429" in err:
-                    print(f"[LLM] Groq/{model} rate limit, trying next model...")
-                    time.sleep(2)
-                    continue
-                raise
+                    time.sleep(1)
+                continue
     except ImportError:
         print("[LLM] groq package not installed. Run: py -m pip install groq")
     except Exception as e:

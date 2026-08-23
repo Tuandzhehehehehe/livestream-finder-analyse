@@ -85,12 +85,13 @@ def render_sidebar():
         col_a1, col_a2 = st.columns(2)
         ar_classify = col_a1.checkbox("Auto-Classify", value=True, key="ar_classify")
         ar_comment = col_a2.checkbox("Auto-Comment", value=False, key="ar_comment")
+        ar_channel = st.checkbox("📡 Auto-Channel (Quét kênh)", value=False, key="ar_channel")
 
         if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
             with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
                 try:
                     from services.auto_runner import run_once
-                    summary = run_once(platforms=ar_platforms or None, auto_classify=ar_classify, auto_comment=ar_comment)
+                    summary = run_once(platforms=ar_platforms or None, auto_classify=ar_classify, auto_comment=ar_comment, auto_channel=ar_channel)
                     st.success(f"✅ Hoàn tất! {summary['total_new']} mới | {summary['total_skipped']} bỏ qua")
                     st.rerun()
                 except Exception as e:
@@ -187,35 +188,41 @@ def render_benchmark_tab():
 
             col_p1, col_p2 = st.columns(2)
             with col_p1:
-                st.markdown("##### 1️⃣ Hiệu Năng Scraper (Playwright)")
-                k1, k2 = st.columns(2)
-                k1.metric("Live Precision", f"{p1.get('live_precision_rate', 0)}%", help="Tỷ lệ livestream thực tế (không bị lẫn video tĩnh)")
-                k2.metric("Độ Đầy Đủ Dữ Liệu", f"{p1.get('field_completeness_rate', 0)}%", help="Tỷ lệ các trường Title, Channel, Status không bị null")
-                k3, k4 = st.columns(2)
-                k3.metric("Tốc độ bóc tách", f"{p1.get('throughput_items_per_sec', 0)} sps")
-                k4.metric("Độ trễ trung bình", f"{p1.get('avg_latency_per_item_sec', 0)}s / item")
+                st.markdown("##### 1️⃣ Hiệu Năng Scraper (Playwright Live Detection)")
+                k1, k2, k3 = st.columns(3)
+                k1.metric("Live Precision", f"{p1.get('live_precision_rate', 0)}%", help="Tỷ lệ livestream thực tế (TP / (TP + FP) không bị lẫn video tĩnh)")
+                k2.metric("Live Recall", f"{p1.get('live_recall_rate', 0)}%", help="Độ phủ số lượng livestream tìm được trên mục tiêu (TP / (TP + FN))")
+                k3.metric("Live F1-Score", f"{p1.get('live_f1_score', 0)}%", help="Điểm điều hòa F1 cân bằng giữa Precision và Recall")
+
+                k4, k5, k6 = st.columns(3)
+                k4.metric("Độ Đầy Đủ Dữ Liệu", f"{p1.get('field_completeness_rate', 0)}%", help="Tỷ lệ các trường Title, Channel, Status không bị null")
+                k5.metric("Tốc độ bóc tách", f"{p1.get('throughput_items_per_sec', 0)} sps")
+                k6.metric("Độ trễ trung bình", f"{p1.get('avg_latency_per_item_sec', 0)}s / item")
 
             with col_p2:
-                st.markdown("##### 2️⃣ Chất Lượng Phù Hợp & AI (Relevance)")
-                k5, k6 = st.columns(2)
-                k5.metric("Precision@5", f"{p2.get('precision_at_5', 0)}%")
-                k6.metric("Spam Leakage", f"{p2.get('spam_leakage_rate', 0)}%", delta=f"{p2.get('spam_leakage_rate', 0)}%", delta_color="inverse")
-                k7, k8 = st.columns(2)
-                k7.metric("MRR (Best Match Rank)", f"{p2.get('mean_reciprocal_rank', 0)}")
-                k8.metric("Độ Đúng Trạng Thái", f"{p2.get('status_accuracy_rate', 0)}%")
+                st.markdown("##### 2️⃣ Chất Lượng Phù Hợp & AI (Relevance & Lead Quality)")
+                k7, k8, k9 = st.columns(3)
+                k7.metric("Rel. Precision", f"{p2.get('relevance_precision_rate', p2.get('precision_at_5', 0))}%", help="Tỷ lệ lead thực sự khớp mục tiêu")
+                k8.metric("Rel. Recall", f"{p2.get('relevance_recall_rate', 100.0)}%", help="Tỷ lệ thu hồi lead liên quan so với chỉ tiêu")
+                k9.metric("Rel. F1-Score", f"{p2.get('relevance_f1_score', 0)}%", help="Điểm F1-Score đánh giá chất lượng phân loại độ liên quan")
+
+                k10, k11, k12 = st.columns(3)
+                k10.metric("Precision@5", f"{p2.get('precision_at_5', 0)}%")
+                k11.metric("MRR", f"{p2.get('mean_reciprocal_rank', 0)}")
+                k12.metric("Spam Leakage", f"{p2.get('spam_leakage_rate', 0)}%", delta=f"{p2.get('spam_leakage_rate', 0)}%", delta_color="inverse")
 
             col_p3, col_p4 = st.columns(2)
             with col_p3:
                 st.markdown("##### 3️⃣ Kinh Tế Token & Tiết Kiệm")
-                k9, k10 = st.columns(2)
-                k9.metric("Hiệu Quả Token", f"{p3.get('token_efficiency_percentage', 0)}%")
-                k10.metric("Lãng Phí Token", f"{p3.get('token_waste_percentage', 0)}%", delta=f"-{p3.get('wasted_tokens', 0):,} tokens", delta_color="inverse")
+                k13, k14 = st.columns(2)
+                k13.metric("Hiệu Quả Token", f"{p3.get('token_efficiency_percentage', 0)}%")
+                k14.metric("Lãng Phí Token", f"{p3.get('token_waste_percentage', 0)}%", delta=f"-{p3.get('wasted_tokens', 0):,} tokens", delta_color="inverse")
 
             with col_p4:
                 st.markdown("##### 4️⃣ Tính Hành Động Của Lead")
-                k13, k14 = st.columns(2)
-                k13.metric("Tỷ Lệ Lead Ưu Tiên Cao", f"{p4.get('high_priority_ratio', 0)}%")
-                k14.metric("Điểm Tiềm Năng TB", f"{p4.get('avg_lead_score', 0)} / 100")
+                k15, k16 = st.columns(2)
+                k15.metric("Tỷ Lệ Lead Ưu Tiên Cao", f"{p4.get('high_priority_ratio', 0)}%")
+                k16.metric("Điểm Tiềm Năng TB", f"{p4.get('avg_lead_score', 0)} / 100")
 
             # Bảng chi tiết từng video kèm nhận xét của Giám khảo AI
             eval_items = tp_judge.get("evaluated_items", [])
@@ -399,6 +406,7 @@ def render_search_tab():
             cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
             use_headless = st.checkbox("Use headless browser for Playwright/TikTok", value=True)
             use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Mặc định: dùng Playwright Scraper)", value=False)
+            auto_crawl_channels = st.checkbox("📡 Quét chi tiết thông tin kênh sau khi tìm kiếm (Channel Intelligence)", value=False)
             force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
             limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
 
@@ -473,16 +481,17 @@ def render_search_tab():
 
             status_ph.success(f"✅ Hoàn thành {total} sự kiện")
 
-            # ── Tự động crawl channel từ events vừa tìm được ─────────────────
-            with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
-                ch_sum = enqueue_channels_from_events(results, goal=goal.strip())
-            if ch_sum.get("saved", 0) > 0 or ch_sum.get("skipped_existing", 0) > 0 or ch_sum.get("skipped_crawl", 0) > 0:
-                st.info(
-                    f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
-                    f"**{ch_sum.get('skipped_existing', 0)}** đã cập nhật/có trong DB | "
-                    f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
-                    f" (Từ khóa: **{goal.strip()}**)"
-                )
+            # ── Tự động crawl channel từ events vừa tìm được (nếu người dùng chọn) ─
+            if auto_crawl_channels:
+                with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
+                    ch_sum = enqueue_channels_from_events(results, goal=goal.strip())
+                if ch_sum.get("saved", 0) > 0 or ch_sum.get("skipped_existing", 0) > 0 or ch_sum.get("skipped_crawl", 0) > 0:
+                    st.info(
+                        f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
+                        f"**{ch_sum.get('skipped_existing', 0)}** đã cập nhật/có trong DB | "
+                        f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
+                        f" (Từ khóa: **{goal.strip()}**)"
+                    )
 
         st.session_state["search_data"] = {
             "goal": goal,

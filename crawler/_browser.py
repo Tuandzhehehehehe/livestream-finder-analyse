@@ -1,14 +1,3 @@
-"""Shared Playwright helpers for crawlers that need a real, logged-in browser.
-
-X and TikTok block search for anonymous visitors (X redirects to /login,
-TikTok renders empty skeleton cards). To get results we drive a real Chromium
-through Playwright and reuse a **persistent browser profile** so a one-time
-manual login keeps working across runs.
-
-The profile directory can be overridden with the ``BROWSER_PROFILE_DIR`` env
-var; otherwise it lives at ``<repo>/data/browser_profile``.
-"""
-
 import os
 
 DEFAULT_USER_AGENT = (

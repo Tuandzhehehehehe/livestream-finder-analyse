@@ -6,6 +6,7 @@ Tính điểm relevance cho sự kiện livestream dựa trên:
   - Active Learning Spam Classifier
   - MiniLM Semantic Similarity Scorer
   - Zero-Shot Cross-Encoder Scorer
+  - Title Engagement & Likes Predictor
 """
 
 import re
@@ -13,6 +14,7 @@ from typing import Dict, Any
 
 DEFAULT_POSITIVE = {"webinar", "conference", "summit", "networking", "startup", "founder", "ceo", "business", "saas", "investor"}
 DEFAULT_NEGATIVE = {"free robux", "robux generator", "free adopt me", "crypto pump", "free vbucks"}
+
 STOP_WORDS = {
     "livestream", "livestreams", "lĩnh", "vực", "tìm", "kiếm", "khách", "hàng",
     "ở", "về", "cho", "và", "and", "with", "the", "a", "an", "or",
@@ -31,7 +33,7 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     description = str(event.get("description", "")).lower()
     text        = f"{title} {description}"
 
-    # ── Spam Classifier (bỏ qua khi xác suất spam >= 85%) ────────────────
+    # ── 1. Active Learning Spam Classifier (bỏ qua khi xác suất spam >= 85%) ──
     try:
         from ai.spam_classifier import predict_spam
         is_spam, spam_prob = predict_spam(title=event.get("title", ""), description=event.get("description", ""))
@@ -42,13 +44,13 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     except Exception as e:
         print(f"[Relevance Filter] Spam Classifier error: {e}")
 
-    # ── Hard-coded spam/scam patterns ─────────────────────────────────────
+    # ── 2. Hard-coded spam/scam patterns ─────────────────────────────────────
     if any(p in title for p in _SPAM_PATTERNS):
         return 0
 
     score = 0
 
-    # ── Keyword matching ──────────────────────────────────────────────────
+    # ── 3. Keyword matching ──────────────────────────────────────────────────
     industries = analysis.get("industries", []) or []
     topics     = analysis.get("topics", []) or []
     personas   = analysis.get("personas", []) or []
@@ -96,7 +98,7 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
         if word in text:
             score -= 15
 
-    # ── MiniLM Semantic Similarity ────────────────────────────────────────
+    # ── 4. MiniLM Semantic Similarity ────────────────────────────────────────
     try:
         from ai.minilm_scorer import compute_minilm_score
         target_queries = [goal] + keywords if goal else keywords
@@ -112,10 +114,10 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     except Exception as e:
         print(f"[Relevance Filter] MiniLM error: {e}")
 
-    # ── Zero-Shot Cross-Encoder ───────────────────────────────────────────
+    # ── 5. Zero-Shot Cross-Encoder ───────────────────────────────────────────
     try:
-        from ai.cross_encoder_scorer import compute_cross_encoder_score
-        if goal:
+        if goal and score > 0:
+            from ai.cross_encoder_scorer import compute_cross_encoder_score
             ce_score = compute_cross_encoder_score(
                 title=event.get("title", ""),
                 description=event.get("description", ""),
@@ -127,4 +129,20 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
     except Exception as e:
         print(f"[Relevance Filter] Cross-Encoder error: {e}")
 
+    # ── 6. Solution 3: Title Engagement & Likes Predictor (Direction 1) ────
+    try:
+        from ai.engagement_predictor import predict_title_engagement
+        eng_score = predict_title_engagement(title=event.get("title", ""))
+        event["engagement_predicted_score"] = eng_score
+        # Tăng điểm thưởng nếu tiêu đề có tiềm năng tương tác cao
+        if eng_score >= 70:
+            score = max(score, int(score * 0.7 + eng_score * 0.3))
+    except Exception as e:
+        print(f"[Relevance Filter] Engagement Predictor error: {e}")
+
     return score
+
+
+def is_relevant(event: Dict[str, Any], goal: str, threshold: int = 0) -> bool:
+    text = f"{event.get('title', '')} {event.get('description', '')}".lower()
+    return (10 if goal.lower().strip() in text else 0) >= threshold

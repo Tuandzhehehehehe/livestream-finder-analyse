@@ -251,13 +251,18 @@ def crawl_youtube_playwright(
                                 ch_href = ch_elem.get_attribute("href") if ch_elem else ""
                                 channel_url = f"https://www.youtube.com{ch_href}" if ch_href and ch_href.startswith("/") else ch_href
 
-                                # Nhận diện chính xác trạng thái LIVE vs UPCOMING
+                                # Nhận diện chính xác trạng thái LIVE vs UPCOMING vs COMPLETED
                                 is_live_badge = bool(item.query_selector(
-                                    ".badge-style-type-live-now-alternate, badge-shape:has-text('LIVE'), badge-shape:has-text('TRỰC TIẾP'), [aria-label*='LIVE']"
+                                    ".badge-style-type-live-now-alternate, badge-shape:has-text('LIVE'), badge-shape:has-text('TRỰC TIẾP'), [aria-label*='LIVE'], ytd-thumbnail-overlay-time-status-renderer[overlay-style='LIVE']"
                                 ))
 
                                 meta_line = item.query_selector("#metadata-line")
                                 meta_text = str(meta_line.inner_text() or "").strip() if meta_line else ""
+                                meta_text_lower = meta_text.lower()
+
+                                # Trích xuất badge thời lượng tĩnh trên thumbnail (nếu có dạng 1:59:44 và không có badge LIVE -> VOD/Video đã kết thúc)
+                                time_badge_elem = item.query_selector("ytd-thumbnail-overlay-time-status-renderer badge-shape, ytd-thumbnail-overlay-time-status-renderer span#text")
+                                time_badge_text = str(time_badge_elem.inner_text() or "").strip() if time_badge_elem else ""
 
                                 # Trích xuất số người xem trực tiếp (Concurrent Viewers)
                                 viewers = ""
@@ -271,12 +276,29 @@ def crawl_youtube_playwright(
                                 if sched_match:
                                     scheduled_time_str = sched_match.group(1).strip()
 
+                                # Dấu hiệu livestream ĐÃ KẾT THÚC (Streamed live X hours/days ago hoặc Đã phát trực tiếp)
+                                is_ended_stream = (
+                                    "streamed" in meta_text_lower
+                                    or "đã phát trực tiếp" in meta_text_lower
+                                    or ("views" in meta_text_lower and not viewers and not is_live_badge and not scheduled_time_str)
+                                    or (bool(re.search(r"\b\d+:\d+\b", time_badge_text)) and not is_live_badge)
+                                )
+
                                 # Quyết định status chuẩn xác
-                                inferred_status = status_mode
-                                if is_live_badge or "watching" in meta_text.lower() or "đang xem" in meta_text.lower():
+                                if (is_live_badge or viewers) and not is_ended_stream:
                                     inferred_status = "LIVE"
-                                elif scheduled_time_str or "scheduled" in meta_text.lower() or "sắp" in meta_text.lower():
+                                elif scheduled_time_str or "scheduled" in meta_text_lower or "sắp" in meta_text_lower or "premiere" in meta_text_lower:
                                     inferred_status = "UPCOMING"
+                                else:
+                                    inferred_status = "COMPLETED"
+
+                                # LỌC CHẶT THEO CHẾ ĐỘ NGƯỜI DÙNG CHỌN (Strict Mode Filter)
+                                if mode == "live" and inferred_status != "LIVE":
+                                    # Người dùng chỉ muốn Live đang phát -> Bỏ qua video đã kết thúc hoặc upcoming
+                                    continue
+                                elif mode == "upcoming" and inferred_status != "UPCOMING":
+                                    # Người dùng chỉ muốn sắp diễn ra -> Bỏ qua video khác
+                                    continue
 
                                 seen_urls.add(clean_url)
                                 events.append({
@@ -293,7 +315,7 @@ def crawl_youtube_playwright(
                                     "start_time": scheduled_time_str,
                                     "scheduled_start_time": scheduled_time_str,
                                     "actual_start_time": "" if inferred_status == "UPCOMING" else "LIVE",
-                                    "actual_end_time": "",
+                                    "actual_end_time": "COMPLETED" if inferred_status == "COMPLETED" else "",
                                 })
 
                                 if len(events) >= limit:

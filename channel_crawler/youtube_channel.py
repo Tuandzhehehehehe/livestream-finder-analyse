@@ -54,8 +54,25 @@ def _parse_url(url: str) -> tuple[str, str]:
     return "forHandle", path  # best guess
 
 
+_QUOTA_EXCEEDED = False
+
+
+def _check_quota_error(e: Exception) -> bool:
+    global _QUOTA_EXCEEDED
+    err_str = str(e).lower()
+    if "quota" in err_str or "429" in err_str or "ratelimitexceeded" in err_str:
+        if not _QUOTA_EXCEEDED:
+            _QUOTA_EXCEEDED = True
+            print("[YT] [WARNING] YouTube API hết Quota (429)! Tự động bỏ qua các request YouTube API tiếp theo.")
+        return True
+    return False
+
+
 def resolve_channel_id(client, url: str) -> Optional[str]:
     """URL kênh → channel ID (UCxxxxxxxx)."""
+    global _QUOTA_EXCEEDED
+    if _QUOTA_EXCEEDED:
+        return None
     id_type, value = _parse_url(url)
     if id_type == "id":
         return value
@@ -64,6 +81,7 @@ def resolve_channel_id(client, url: str) -> Optional[str]:
         items = resp.get("items", [])
         return items[0]["id"] if items else None
     except Exception as e:
+        _check_quota_error(e)
         print(f"[YT] resolve_channel_id error: {e}")
         return None
 
@@ -71,6 +89,9 @@ def resolve_channel_id(client, url: str) -> Optional[str]:
 # ── Data fetching ─────────────────────────────────────────────────────────────
 
 def _fetch_channel(client, channel_id: str) -> Optional[dict]:
+    global _QUOTA_EXCEEDED
+    if _QUOTA_EXCEEDED:
+        return None
     try:
         resp  = client.channels().list(
             part="snippet,statistics,brandingSettings,topicDetails",
@@ -79,14 +100,21 @@ def _fetch_channel(client, channel_id: str) -> Optional[dict]:
         items = resp.get("items", [])
         return items[0] if items else None
     except Exception as e:
+        if _check_quota_error(e):
+            return None
         print(f"[YT] fetch_channel error ({channel_id}): {e}")
         # Re-raise SSL/EOF errors để with_retry có thể bắt và thử lại
         raise
 
 
 def _fetch_livestreams(client, channel_id: str, max_results: int = 30) -> list[dict]:
+    global _QUOTA_EXCEEDED
+    if _QUOTA_EXCEEDED:
+        return []
     events = []
     for event_type in ("completed", "live", "upcoming"):
+        if _QUOTA_EXCEEDED:
+            break
         try:
             resp = client.search().list(
                 part="snippet", channelId=channel_id, type="video",
@@ -118,6 +146,8 @@ def _fetch_livestreams(client, channel_id: str, max_results: int = 30) -> list[d
                     "url":         f"https://youtube.com/watch?v={vid['id']}",
                 })
         except Exception as e:
+            if _check_quota_error(e):
+                break
             print(f"[YT] fetch_livestreams ({event_type}): {e}")
     return events
 
@@ -133,29 +163,96 @@ def _parse_duration(iso: str) -> Optional[int]:
     return h * 60 + mn + (1 if s >= 30 else 0)
 
 
+# ── Web-based fallback crawler (No API Key required) ─────────────────────────
+
+def crawl_youtube_channel_web(channel_url: str) -> Optional[dict]:
+    """Crawl channel metadata via public web scraping (requests + BeautifulSoup). Không dùng YouTube API."""
+    import requests
+    from bs4 import BeautifulSoup
+    from channel_crawler._utils import _HEADERS, parse_count
+
+    url = channel_url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=12)
+        if resp.status_code != 200:
+            return None
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        og_title = (soup.find("meta", property="og:title") or {}).get("content", "")
+        og_desc = (soup.find("meta", property="og:description") or {}).get("content", "")
+        
+        title_tag = soup.find("title")
+        page_title = title_tag.text.replace(" - YouTube", "").strip() if title_tag else ""
+        channel_name = og_title or page_title or url.split("/")[-1]
+
+        m = re.search(r"([\d,\.]+[KkMmBb]?)\s*(?:subscribers?|người đăng ký)", resp.text, re.IGNORECASE)
+        follower_count = parse_count(m.group(1)) if m else 0
+
+        ch_id_match = re.search(r"channel/(UC[a-zA-Z0-9_-]{22})", resp.text)
+        channel_id = ch_id_match.group(1) if ch_id_match else ""
+
+        seller = extract_seller_info(og_desc, extra={"brand_name": channel_name})
+        seller["social_links"] = seller.pop("links", [])
+
+        return {
+            "platform":              "youtube",
+            "channel_id":            channel_id,
+            "channel_url":           url,
+            "username":              url.split("/")[-1],
+            "channel_name":          channel_name,
+            "follower_count":        follower_count,
+            "total_livestreams":     0,
+            "broadcast_freq_weekly": None,
+            "last_live_at":          None,
+            "avg_viewers":           None,
+            "category":              None,
+            "language":              "en",
+            "description":           og_desc[:1000],
+            "is_verified":           False,
+            "location_raw":          "",
+            "country":               None,
+            "region_tag":            None,
+            "timezone":              None,
+            "seller_info":           seller,
+            "activity_history":      [],
+            "channel_created_at":    "",
+        }
+    except Exception as e:
+        print(f"[YT Web] Error crawling channel ({url}): {e}")
+        return None
+
+
 # ── Main crawl function ───────────────────────────────────────────────────────
 
 def crawl_youtube_channel(channel_url: str, max_live_history: int = 30) -> Optional[dict]:
-    """Crawl thông tin kênh YouTube. Trả về dict cho channel_repository."""
+    """Crawl thông tin kênh YouTube. Tự động dùng Web Scraper nếu API tắt hoặc hết Quota."""
+    env_val = os.getenv("ENABLE_YOUTUBE_API", "false").lower()
+    use_api = env_val in ("true", "1", "yes", "on")
+
+    global _QUOTA_EXCEEDED
+    if not use_api or _QUOTA_EXCEEDED:
+        return crawl_youtube_channel_web(channel_url)
+
     try:
         yt = _client()
-    except RuntimeError as e:
-        print(f"[YT] {e}")
-        return None
+    except Exception as e:
+        return crawl_youtube_channel_web(channel_url)
 
     channel_id = resolve_channel_id(yt, channel_url)
     if not channel_id:
-        print(f"[YT] Không resolve được channel_id: {channel_url}")
-        return None
+        return crawl_youtube_channel_web(channel_url)
 
     raw = None
     try:
-        raw = with_retry(_fetch_channel, yt, channel_id, max_retries=3, base_delay=2.0, label="YT")
+        raw = with_retry(_fetch_channel, yt, channel_id, max_retries=1, base_delay=1.0, label="YT")
     except Exception as e:
-        print(f"[YT] fetch_channel cuối cùng thất bại ({channel_id}): {e}")
+        pass
+
     if not raw:
-        print(f"[YT] Không lấy được dữ liệu kênh: {channel_id}")
-        return None
+        return crawl_youtube_channel_web(channel_url)
 
     snippet  = raw.get("snippet", {})
     stats    = raw.get("statistics", {})
@@ -214,9 +311,8 @@ def crawl_youtube_channel(channel_url: str, max_live_history: int = 30) -> Optio
 
 
 def crawl_youtube_channels_bulk(urls: list[str], max_live_history: int = 20) -> list[dict]:
-    # delay=1.5 để tránh YouTube cắt kết nối SSL khi request quá nhanh
     return bulk_crawl(
         crawl_youtube_channel, urls, "YouTube",
-        delay=1.5, retry=3, retry_base_delay=2.0,
+        delay=0.5, retry=1, retry_base_delay=1.0,
         max_live_history=max_live_history,
     )

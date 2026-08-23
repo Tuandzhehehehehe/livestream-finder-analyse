@@ -50,24 +50,35 @@ def deduplicate_events(events: List[Dict[str, Any]], seen: set = None) -> List[D
             results.append(event)
     return results
 
+
 def infer_event_status(event: Dict[str, Any]) -> str:
     """Nhận diện trạng thái phát trực tiếp (LIVE) thực tế."""
     status = str(event.get("status", "")).upper()
     
     title = str(event.get("title", "")).lower()
     desc = str(event.get("description", "")).lower()
-    text = f"{title} {desc}"
+    meta = str(event.get("concurrent_viewers", "")).lower() + " " + str(event.get("start_time", "")).lower()
+    text = f"{title} {desc} {meta}"
     
-    # Chỉ gán LIVE nếu có các cụm từ khẳng định đang phát sóng trực tiếp ngay lúc này
+    # 1. Kiểm tra các dấu hiệu livestream ĐÃ KẾT THÚC (Streamed live ... ago / Đã phát trực tiếp)
+    ended_phrases = ["streamed live", "đã phát trực tiếp", "streamed", "ended live", "broadcasted", "ago", "trước"]
+    if any(phrase in text for phrase in ended_phrases) and not event.get("concurrent_viewers"):
+        return "COMPLETED"
+        
+    # 2. Chỉ gán LIVE nếu có người xem thực tế hoặc các cụm từ khẳng định đang phát sóng trực tiếp
     strict_live_phrases = [
         "🔴 live", "live now", "happening now", "watching now", "online now", 
         "đang phát trực tiếp", "streaming live now", "[live now]", "live stream now"
     ]
     
-    if any(phrase in text for phrase in strict_live_phrases):
+    if bool(event.get("concurrent_viewers")) or any(phrase in text for phrase in strict_live_phrases):
         return "LIVE"
         
-    return status if status else "UPCOMING"
+    # 3. Kiểm tra sắp diễn ra
+    if "scheduled" in text or "sắp" in text or "premiere" in text:
+        return "UPCOMING"
+        
+    return status if status else "COMPLETED"
 
 
 def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> List[Dict[str, Any]]:
@@ -88,7 +99,6 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
         # Tự động cập nhật status thông minh
         event["status"] = infer_event_status(event)
         status = event["status"]
-
 
         # --- Parse các mốc thời gian ---
         def _parse(dt_str):
@@ -116,9 +126,10 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
             if scheduled and scheduled < cutoff_upcoming:
                 continue
 
+        # --- Fallback cho MỌI status: nếu không có timestamp, quét NĂM trong TITLE ---
+        # Chỉ quét title (không quét description vì description hay chứa năm không liên quan)
         if not actual_end and not actual_start and not scheduled:
-            title = str(event.get("title", ""))
-            years_in_title = [int(y) for y in re.findall(r'\b(20\d{2})\b', title)]
+            years_in_title = [int(y) for y in re.findall(r'\b(20\d{2})\b', str(event.get("title", "")))]
             if years_in_title and max(years_in_title) < now.year:
                 continue
 
@@ -250,7 +261,6 @@ def crawl_livestreams_with_ai(
     else:
         keys = list(platform_calls.keys())
 
-
     # persistent cache using sqlite
     cache_enabled = bool(kwargs.get("cache", True))
     cache_ttl = int(kwargs.get("cache_ttl", 300))
@@ -297,10 +307,11 @@ def crawl_livestreams_with_ai(
 
     def run_crawler(platform_name, crawler_fn):
         try:
-            # build cache key from platform + queries
+            # build cache key from platform + queries + mode
             qhash = hashlib.sha256(json.dumps(queries, sort_keys=True).encode()).hexdigest()
             use_yt_api = kwargs.get("use_youtube_api", True)
-            cache_key = f"{platform_name}:{qhash}:{limit}:ytapi={use_yt_api}"
+            yt_mode = kwargs.get("youtube_mode", "all")
+            cache_key = f"{platform_name}:{qhash}:{limit}:ytapi={use_yt_api}:mode={yt_mode}"
 
             if cache_enabled:
                 cached = get_cache(cache_key)
@@ -309,11 +320,12 @@ def crawl_livestreams_with_ai(
                     return platform_name, cached, None
 
             print(f"[AI Crawl Tool] Searching {platform_name}...")
-            # try to pass optional headless kwarg to crawler if supported.
             crawler_opts = {}
             crawler_opts["use_headless"] = kwargs.get("use_headless", platform_name == "tiktok")
             if platform_name == "youtube":
                 crawler_opts["use_api"] = use_yt_api
+                crawler_opts["mode"] = yt_mode
+                crawler_opts["use_headless"] = kwargs.get("use_headless", True)
 
             # Chọn bộ từ khóa phù hợp theo loại nền tảng
             active_queries = base_queries if platform_name in EVENT_ONLY_PLATFORMS else queries
@@ -358,6 +370,13 @@ def crawl_livestreams_with_ai(
     # Lọc sự kiện cũ/sai trạng thái trước khi score
     events = time_filter_events(events)
 
+    # Lọc chặt theo mode người dùng chọn (Chỉ Live hoặc Chỉ Upcoming)
+    yt_mode = kwargs.get("youtube_mode", "all")
+    if yt_mode == "live":
+        events = [e for e in events if e.get("status") == "LIVE"]
+    elif yt_mode == "upcoming":
+        events = [e for e in events if e.get("status") == "UPCOMING"]
+
     # First pass filtering/scoring
     events = filter_and_score_events(events, analysis, goal=goal)
 
@@ -387,6 +406,11 @@ def crawl_livestreams_with_ai(
 
         # Lọc sự kiện cũ/sai trạng thái
         events = time_filter_events(events)
+
+        if yt_mode == "live":
+            events = [e for e in events if e.get("status") == "LIVE"]
+        elif yt_mode == "upcoming":
+            events = [e for e in events if e.get("status") == "UPCOMING"]
 
         events = filter_and_score_events(events, analysis, goal=goal)
 
