@@ -159,6 +159,12 @@ def _resolve_youtube_channel_from_video(video_id: str) -> str:
     Trả về channel URL hoặc chuỗi rỗng nếu không resolve được.
     """
     import os
+    try:
+        from channel_crawler.youtube_channel import _QUOTA_EXCEEDED
+        if _QUOTA_EXCEEDED:
+            return ""
+    except Exception:
+        pass
     key = os.getenv("YOUTUBE_API_KEY")
     if not key:
         logger.debug("[YouTube] YOUTUBE_API_KEY chưa cấu hình, bỏ qua resolve video→channel")
@@ -173,6 +179,13 @@ def _resolve_youtube_channel_from_video(video_id: str) -> str:
         ch_id = items[0]["snippet"].get("channelId", "")
         return f"https://youtube.com/channel/{ch_id}" if ch_id else ""
     except Exception as e:
+        err_str = str(e).lower()
+        if "quota" in err_str or "429" in err_str or "ratelimitexceeded" in err_str:
+            try:
+                import channel_crawler.youtube_channel as yt_ch
+                yt_ch._QUOTA_EXCEEDED = True
+            except Exception:
+                pass
         logger.debug(f"[YouTube] resolve video→channel error ({video_id}): {e}")
         return ""
 

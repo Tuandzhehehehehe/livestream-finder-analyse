@@ -116,8 +116,8 @@ def calculate_relevance(event: Dict[str, Any], analysis: Dict[str, Any], goal: s
 
     # ── 5. Zero-Shot Cross-Encoder ───────────────────────────────────────────
     try:
-        from ai.cross_encoder_scorer import compute_cross_encoder_score
-        if goal:
+        if goal and score > 0:
+            from ai.cross_encoder_scorer import compute_cross_encoder_score
             ce_score = compute_cross_encoder_score(
                 title=event.get("title", ""),
                 description=event.get("description", ""),

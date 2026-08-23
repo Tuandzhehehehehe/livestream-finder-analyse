@@ -60,6 +60,7 @@ def run_once(
     min_score: int = 10,
     auto_classify: bool = True,
     auto_comment: bool = True,
+    auto_channel: bool = False,
 ) -> dict:
     """
     Đọc tất cả Goal Profiles đã lưu, crawl từng goal, classify và lưu DB.
@@ -163,8 +164,8 @@ def run_once(
             summary["total_skipped"] += skipped_count
             summary["profiles_run"] += 1
 
-            # ── Tự động crawl channel từ events vừa tìm được ─────────────
-            if events:
+            # ── Tự động crawl channel từ events vừa tìm được (nếu bật) ───
+            if auto_channel and events:
                 try:
                     from services.channel_runner import enqueue_channels_from_events
                     ch_result = enqueue_channels_from_events(events)
@@ -235,6 +236,7 @@ def start_scheduler(
     limit: int = 20,
     auto_classify: bool = True,
     auto_comment: bool = True,
+    auto_channel: bool = False,
 ):
     """
     Chạy run_once() mỗi interval_hours giờ.
@@ -243,7 +245,7 @@ def start_scheduler(
     import schedule
 
     logger.info(f"🕐 Scheduler khởi động — mỗi {interval_hours} giờ sẽ crawl tự động")
-    logger.info(f"   Platforms: {platforms or 'tất cả'} | Limit: {limit} | Classify: {auto_classify} | Comment: {auto_comment}")
+    logger.info(f"   Platforms: {platforms or 'tất cả'} | Limit: {limit} | Classify: {auto_classify} | Comment: {auto_comment} | Channel: {auto_channel}")
 
     def _job():
         logger.info("=" * 60)
@@ -254,6 +256,7 @@ def start_scheduler(
             limit=limit,
             auto_classify=auto_classify,
             auto_comment=auto_comment,
+            auto_channel=auto_channel,
         )
 
     # Chạy 1 lần ngay khi khởi động

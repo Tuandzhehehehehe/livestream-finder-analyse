@@ -1,0 +1,72 @@
+{
+  "goal": "Charity",
+  "compiled_at": "2026-08-24T01:12:03",
+  "compiled_by": "groq/openai/gpt-oss-120b",
+  "industries": [
+    "non-profit",
+    "philanthropy",
+    "social enterprise",
+    "humanitarian aid",
+    "community development",
+    "education"
+  ],
+  "personas": [
+    "donor",
+    "volunteer",
+    "charity organizer",
+    "nonprofit manager",
+    "grantmaker"
+  ],
+  "topics": [
+    "charity",
+    "nonprofit",
+    "fundraising",
+    "donation",
+    "giving",
+    "philanthropy",
+    "social impact",
+    "cause",
+    "charitable event",
+    "volunteerism",
+    "community outreach",
+    "grant",
+    "altruism",
+    "charitable campaign",
+    "charitable giving"
+  ],
+  "search_queries": [
+    "charity livestream",
+    "fundraising live",
+    "nonprofit stream",
+    "donation live",
+    "charity event live",
+    "philanthropy livestream",
+    "social impact live",
+    "charity online stream",
+    "fundraiser livestream",
+    "giving live",
+    "charity live event",
+    "nonprofit live",
+    "donor livestream",
+    "volunteer live stream",
+    "charitable campaign live"
+  ],
+  "positive_keywords": [
+    "charity",
+    "nonprofit",
+    "fundraising",
+    "donation",
+    "giving",
+    "philanthropy",
+    "donor",
+    "volunteer",
+    "grant",
+    "altruism",
+    "social impact",
+    "cause",
+    "charitable",
+    "campaign",
+    "community"
+  ],
+  "negative_keywords": []
+}

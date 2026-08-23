@@ -85,12 +85,13 @@ def render_sidebar():
         col_a1, col_a2 = st.columns(2)
         ar_classify = col_a1.checkbox("Auto-Classify", value=True, key="ar_classify")
         ar_comment = col_a2.checkbox("Auto-Comment", value=False, key="ar_comment")
+        ar_channel = st.checkbox("📡 Auto-Channel (Quét kênh)", value=False, key="ar_channel")
 
         if st.button("▶️ Chạy thủ công ngay", use_container_width=True, key="manual_auto_run"):
             with st.spinner("🤖 Đang crawl tất cả Goal Profiles..."):
                 try:
                     from services.auto_runner import run_once
-                    summary = run_once(platforms=ar_platforms or None, auto_classify=ar_classify, auto_comment=ar_comment)
+                    summary = run_once(platforms=ar_platforms or None, auto_classify=ar_classify, auto_comment=ar_comment, auto_channel=ar_channel)
                     st.success(f"✅ Hoàn tất! {summary['total_new']} mới | {summary['total_skipped']} bỏ qua")
                     st.rerun()
                 except Exception as e:
@@ -405,6 +406,7 @@ def render_search_tab():
             cache_ttl = st.number_input("Cache TTL (seconds)", min_value=0, max_value=86400, value=300)
             use_headless = st.checkbox("Use headless browser for Playwright/TikTok", value=True)
             use_youtube_api = st.checkbox("🔑 Dùng YouTube API (Mặc định: dùng Playwright Scraper)", value=False)
+            auto_crawl_channels = st.checkbox("📡 Quét chi tiết thông tin kênh sau khi tìm kiếm (Channel Intelligence)", value=False)
             force_recompile = st.checkbox("🔄 Compile lại profile (bỏ qua cache)", value=False)
             limit = st.number_input("Số lượng", min_value=1, max_value=100, value=20)
 
@@ -479,16 +481,17 @@ def render_search_tab():
 
             status_ph.success(f"✅ Hoàn thành {total} sự kiện")
 
-            # ── Tự động crawl channel từ events vừa tìm được ─────────────────
-            with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
-                ch_sum = enqueue_channels_from_events(results, goal=goal.strip())
-            if ch_sum.get("saved", 0) > 0 or ch_sum.get("skipped_existing", 0) > 0 or ch_sum.get("skipped_crawl", 0) > 0:
-                st.info(
-                    f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
-                    f"**{ch_sum.get('skipped_existing', 0)}** đã cập nhật/có trong DB | "
-                    f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
-                    f" (Từ khóa: **{goal.strip()}**)"
-                )
+            # ── Tự động crawl channel từ events vừa tìm được (nếu người dùng chọn) ─
+            if auto_crawl_channels:
+                with st.spinner("📡 Đang thu thập thông tin kênh từ kết quả..."):
+                    ch_sum = enqueue_channels_from_events(results, goal=goal.strip())
+                if ch_sum.get("saved", 0) > 0 or ch_sum.get("skipped_existing", 0) > 0 or ch_sum.get("skipped_crawl", 0) > 0:
+                    st.info(
+                        f"📡 AutoChannel: **{ch_sum.get('saved', 0)}** kênh mới lưu | "
+                        f"**{ch_sum.get('skipped_existing', 0)}** đã cập nhật/có trong DB | "
+                        f"**{ch_sum.get('skipped_crawl', 0)}** bỏ qua"
+                        f" (Từ khóa: **{goal.strip()}**)"
+                    )
 
         st.session_state["search_data"] = {
             "goal": goal,
