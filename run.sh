@@ -19,13 +19,14 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 VENV_DIR=".venv_mac"
-if [ ! -d "$VENV_DIR" ] && [ -d ".venv" ]; then
+if [ -f ".venv/bin/python3" ] || [ -f ".venv/bin/python" ]; then
     VENV_DIR=".venv"
 fi
 
 # 2. Kiem tra va tao moi truong ao
-if [ ! -d "$VENV_DIR" ]; then
+if [ ! -f "$VENV_DIR/bin/python" ] && [ ! -f "$VENV_DIR/bin/python3" ]; then
     echo "⚙️ [THONG BAO] Dang tao moi truong ao $VENV_DIR..."
+    rm -rf "$VENV_DIR" 2>/dev/null || true
     python3 -m venv "$VENV_DIR"
 fi
 

@@ -24,15 +24,16 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 3. Chọn thư mục môi trường ảo
+# 3. Chọn thư mục môi trường ảo tương thích macOS (tránh xung đột với venv của Windows)
 VENV_DIR=".venv_mac"
-if [ ! -d "$VENV_DIR" ] && [ -d ".venv" ]; then
+if [ -f ".venv/bin/python3" ] || [ -f ".venv/bin/python" ]; then
     VENV_DIR=".venv"
 fi
 
-# Tạo môi trường ảo nếu chưa có
-if [ ! -d "$VENV_DIR" ]; then
-    echo "⚙️ [THÔNG BÁO] Đang khởi tạo môi trường ảo $VENV_DIR..."
+# Tạo môi trường ảo macOS nếu chưa có
+if [ ! -f "$VENV_DIR/bin/python" ] && [ ! -f "$VENV_DIR/bin/python3" ]; then
+    echo "⚙️ [THÔNG BÁO] Đang khởi tạo môi trường ảo $VENV_DIR cho macOS..."
+    rm -rf "$VENV_DIR" 2>/dev/null || true
     python3 -m venv "$VENV_DIR"
 fi
 
