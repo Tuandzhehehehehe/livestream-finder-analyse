@@ -12,68 +12,59 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from database.db import engine, livestreams
 
 EXCEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "livestreams.xlsx"))
-EXCEL_HEADERS = ['Tên', 'Score', 'Priority', 'Buyer Persona', 'Industry', 'Suggested Comment', 'Location', 'Content', 'Ngày', 'YouTube', 'TikTok', 'Web']
+EXCEL_HEADERS = ["Tên", "Score", "Priority", "Buyer Persona", "Industry", "Suggested Comment", "Location", "Content", "Ngày", "YouTube", "TikTok", "Web"]
 
 
 def save_to_excel(event: dict) -> bool:
     """
-    Lưu thông tin livestream vào file Excel kèm theo chỉ số đánh giá tiềm năng.
-    Cột định dạng: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, TikTok, Web
+    Lưu thông tin livestream vào file Excel.
+    Cột: Tên, Score, Priority, Buyer Persona, Industry, Suggested Comment, Location, Content, Ngày, YouTube, TikTok, Web
     """
     try:
         os.makedirs(os.path.dirname(EXCEL_PATH), exist_ok=True)
-
-        headers = EXCEL_HEADERS
 
         if os.path.exists(EXCEL_PATH):
             try:
                 wb = load_workbook(EXCEL_PATH)
                 ws = wb.active
-                # Cập nhật header nếu file Excel hiện tại chưa có các cột mới
-                if ws.max_column < len(headers):
+                # Cập nhật header nếu file hiện tại chưa có đủ cột
+                if ws.max_column < len(EXCEL_HEADERS):
                     ws.delete_rows(1, ws.max_row)
-                    ws.append(headers)
+                    ws.append(EXCEL_HEADERS)
             except Exception as e:
-                print(f"[Excel Repair] File Excel bị lỗi ({e}) - tự động khởi tạo file mới...")
+                print(f"[Excel Repair] File bị lỗi ({e}) — tạo lại file mới...")
                 wb = Workbook()
                 ws = wb.active
                 ws.title = "Livestreams"
-                ws.append(headers)
+                ws.append(EXCEL_HEADERS)
         else:
             wb = Workbook()
             ws = wb.active
             ws.title = "Livestreams"
-            ws.append(headers)
+            ws.append(EXCEL_HEADERS)
 
         url = event.get("url", "").strip()
         if not url:
             return False
 
-        url_exists = False
+        # Kiểm tra URL đã tồn tại (cột 10–12)
         for row in range(2, ws.max_row + 1):
             for col in range(10, 13):
-                cell_val = ws.cell(row=row, column=col).value
-                if cell_val and str(cell_val).strip() == url:
-                    url_exists = True
-                    break
-            if url_exists:
-                break
+                if ws.cell(row=row, column=col).value and str(ws.cell(row=row, column=col).value).strip() == url:
+                    return False
 
-        if url_exists:
-            return False
-
-        title = event.get("title", "")
-        score = event.get("score", 0)
-        priority = event.get("priority", "Low")
-        buyer_persona = event.get("buyer_persona", "")
-        industry = event.get("industry", "")
-        suggested_comment = event.get("suggested_comment", "")
-        location = event.get("platform", "")
-        content = event.get("description", "")
-        date = event.get("scheduled_start_time") or event.get("start_time") or ""
-
-        row_data = [title, score, priority, buyer_persona, industry, suggested_comment, location, content, date, "", "", ""]
-
+        row_data = [
+            event.get("title", ""),
+            event.get("score", 0),
+            event.get("priority", "Low"),
+            event.get("buyer_persona", ""),
+            event.get("industry", ""),
+            event.get("suggested_comment", ""),
+            event.get("platform", ""),
+            event.get("description", ""),
+            event.get("scheduled_start_time") or event.get("start_time") or "",
+            "", "", "",
+        ]
         platform = str(event.get("platform", "")).lower().strip()
         if "youtube" in platform:
             row_data[9] = url
@@ -88,6 +79,8 @@ def save_to_excel(event: dict) -> bool:
     except Exception as e:
         print(f"❌ Excel save error: {e}")
         return False
+
+
 def save_event(event: dict) -> bool:
     try:
         with engine.begin() as conn:
