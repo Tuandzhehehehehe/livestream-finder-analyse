@@ -15,18 +15,9 @@ import json
 from typing import Optional
 from urllib.parse import urlparse
 
-from channel_crawler._utils import extract_seller_info, bulk_crawl, parse_count, _SHOP_RE
+from channel_crawler._utils import extract_seller_info, bulk_crawl, parse_count, _SHOP_RE, _HEADERS
 from channel_crawler.region_mapper import map_location
 
-
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-}
 _TIMEOUT = 15
 
 

@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv  # pyrefly: ignore [missing-import]
 
-from channel_crawler._utils import extract_seller_info, compute_freq_weekly, bulk_crawl
+from channel_crawler._utils import extract_seller_info, compute_freq_weekly, bulk_crawl, with_retry
 from channel_crawler.region_mapper import map_location
 
 load_dotenv()
@@ -34,6 +34,9 @@ def _client():
 
 def _parse_url(url: str) -> tuple[str, str]:
     """Trả về (id_type, value): 'id'|'forHandle'|'forUsername', value."""
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
     parsed = urlparse(url)
     path   = parsed.path.strip("/")
     if path.startswith("channel/"):
@@ -77,7 +80,8 @@ def _fetch_channel(client, channel_id: str) -> Optional[dict]:
         return items[0] if items else None
     except Exception as e:
         print(f"[YT] fetch_channel error ({channel_id}): {e}")
-        return None
+        # Re-raise SSL/EOF errors để with_retry có thể bắt và thử lại
+        raise
 
 
 def _fetch_livestreams(client, channel_id: str, max_results: int = 30) -> list[dict]:
@@ -144,7 +148,11 @@ def crawl_youtube_channel(channel_url: str, max_live_history: int = 30) -> Optio
         print(f"[YT] Không resolve được channel_id: {channel_url}")
         return None
 
-    raw = _fetch_channel(yt, channel_id)
+    raw = None
+    try:
+        raw = with_retry(_fetch_channel, yt, channel_id, max_retries=3, base_delay=2.0, label="YT")
+    except Exception as e:
+        print(f"[YT] fetch_channel cuối cùng thất bại ({channel_id}): {e}")
     if not raw:
         print(f"[YT] Không lấy được dữ liệu kênh: {channel_id}")
         return None
@@ -206,4 +214,9 @@ def crawl_youtube_channel(channel_url: str, max_live_history: int = 30) -> Optio
 
 
 def crawl_youtube_channels_bulk(urls: list[str], max_live_history: int = 20) -> list[dict]:
-    return bulk_crawl(crawl_youtube_channel, urls, "YouTube", delay=0, max_live_history=max_live_history)
+    # delay=1.5 để tránh YouTube cắt kết nối SSL khi request quá nhanh
+    return bulk_crawl(
+        crawl_youtube_channel, urls, "YouTube",
+        delay=1.5, retry=3, retry_base_delay=2.0,
+        max_live_history=max_live_history,
+    )

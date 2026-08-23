@@ -21,6 +21,10 @@ from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # ── Logger ─────────────────────────────────────────────────────────────────────
 _DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data"))
 os.makedirs(_DATA_DIR, exist_ok=True)
@@ -56,7 +60,7 @@ def _get_crawl_fn(platform: str):
 
 # ── Crawl + lưu DB ─────────────────────────────────────────────────────────────
 
-def crawl_and_save_channels(urls: list[str], platform: str, *, max_live_history: int = 20) -> dict:
+def crawl_and_save_channels(urls: list[str], platform: str, *, max_live_history: int = 20, goal: str = "", target_region: str = "") -> dict:
     """Crawl danh sách URL kênh, tính CAS và upsert vào channel_info.db."""
     from database.channel_repository import upsert_channel
     from services.attraction_score import compute_cas, cas_tier
@@ -74,13 +78,31 @@ def crawl_and_save_channels(urls: list[str], platform: str, *, max_live_history:
         if not ch:
             skipped += 1
             continue
+        if goal:
+            if not ch.get("category"):
+                ch["category"] = goal
+            s_info = dict(ch.get("seller_info") or {}) if isinstance(ch.get("seller_info"), dict) else {}
+            goals = set(s_info.get("search_goals") or [])
+            goals.add(goal)
+            s_info["search_goals"] = list(goals)
+            ch["seller_info"] = s_info
+
+        if target_region:
+            from channel_crawler.region_mapper import map_location
+            loc = map_location(target_region)
+            if not ch.get("country"):
+                ch["country"] = loc.get("country") or target_region.split("-")[0].upper()
+            if not ch.get("region_tag"):
+                ch["region_tag"] = loc.get("region_tag") or target_region
+
         ch["cas"] = compute_cas(ch)
-        ch["cas_computed_at"] = datetime.now(timezone.utc).isoformat()
+        ch["cas_computed_at"] = datetime.now(timezone.utc)
         ch["tier"] = cas_tier(ch["cas"])
         if upsert_channel(ch):
             saved.append(ch)
             logger.info(f"  ✔ {ch.get('channel_name', ch.get('channel_url', '?'))[:50]} | CAS={ch['cas']}")
         else:
+            skipped += 1
             logger.warning(f"  ✘ Lưu thất bại: {ch.get('channel_url', '?')}")
 
     skipped += len(urls) - len(raw)
@@ -155,12 +177,12 @@ def _resolve_youtube_channel_from_video(video_id: str) -> str:
         return ""
 
 
-def enqueue_channels_from_events(events: list[dict]) -> dict:
+def enqueue_channels_from_events(events: list[dict], goal: str = "", target_region: str = "") -> dict:
     """
-    Trích channel URL từ events, bỏ qua URL đã có trong DB, crawl batch mới.
+    Trích channel URL từ events, bổ sung meta (goal, region), crawl batch mới.
     Trả về: {new_urls, skipped_existing, saved, skipped_crawl}
     """
-    from database.channel_repository import get_channel_by_url
+    from database.channel_repository import get_channel_by_url, enrich_channel_meta
 
     # Trích (platform, url) duy nhất từ events
     seen: set[str] = set()
@@ -183,6 +205,8 @@ def enqueue_channels_from_events(events: list[dict]) -> dict:
     for platform, url in pairs:
         if get_channel_by_url(url):
             skipped_existing += 1
+            if goal or target_region:
+                enrich_channel_meta(url, goal=goal, target_region=target_region)
         else:
             to_crawl.setdefault(platform, []).append(url)
 
@@ -193,7 +217,7 @@ def enqueue_channels_from_events(events: list[dict]) -> dict:
     saved = skipped_crawl = 0
     for platform, urls in to_crawl.items():
         try:
-            s = crawl_and_save_channels(urls, platform)
+            s = crawl_and_save_channels(urls, platform, goal=goal, target_region=target_region)
             saved        += s["saved"]
             skipped_crawl += s["skipped"]
         except Exception as e:

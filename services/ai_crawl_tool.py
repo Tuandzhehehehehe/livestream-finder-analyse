@@ -12,7 +12,7 @@ from crawler.youtube import crawl_youtube_live
 from crawler.tiktok import crawl_tiktok_live
 from crawler.web_search import crawl_web
 from services.goal_analyzer import build_fallback
-from ai.spam_classifier import calculate_relevance
+from services.relevance_filter import calculate_relevance
 from services.goal_profile_compiler import get_or_compile
 
 
@@ -49,6 +49,7 @@ def deduplicate_events(events: List[Dict[str, Any]], seen: set = None) -> List[D
             event["url"] = normalized
             results.append(event)
     return results
+
 
 def infer_event_status(event: Dict[str, Any]) -> str:
     """Nhận diện trạng thái phát trực tiếp (LIVE) thực tế."""
@@ -99,7 +100,6 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
         event["status"] = infer_event_status(event)
         status = event["status"]
 
-
         # --- Parse các mốc thời gian ---
         def _parse(dt_str):
             if not dt_str:
@@ -129,14 +129,9 @@ def time_filter_events(events: List[Dict[str, Any]], max_past_days: int = 7) -> 
         # --- Fallback cho MỌI status: nếu không có timestamp, quét NĂM trong TITLE ---
         # Chỉ quét title (không quét description vì description hay chứa năm không liên quan)
         if not actual_end and not actual_start and not scheduled:
-            import re as _re
-            title = str(event.get("title", ""))
-            years_in_title = [int(y) for y in _re.findall(r'\b(20\d{2})\b', title)]
-            if years_in_title:
-                max_year = max(years_in_title)
-                if max_year < now.year:
-                    # Năm mới nhất trong title đã qua → sự kiện cũ, bỏ qua
-                    continue
+            years_in_title = [int(y) for y in re.findall(r'\b(20\d{2})\b', str(event.get("title", "")))]
+            if years_in_title and max(years_in_title) < now.year:
+                continue
 
         elif status == "LIVE":
             # Nếu có actual_end thì thực ra đã kết thúc -> bỏ qua nếu quá cũ
@@ -207,7 +202,6 @@ def crawl_livestreams_with_ai(
     mode: str = "ai_then_fallback",
     **kwargs,
 ) -> Dict[str, Any]:
-    # accept extra kwargs for compatibility with older callers
     use_ai = mode != "fallback_only"
     force_recompile = bool(kwargs.get("force_recompile", False))
 
@@ -266,7 +260,6 @@ def crawl_livestreams_with_ai(
         keys = list(dict.fromkeys(expanded_keys))
     else:
         keys = list(platform_calls.keys())
-
 
     # persistent cache using sqlite
     cache_enabled = bool(kwargs.get("cache", True))
@@ -327,17 +320,11 @@ def crawl_livestreams_with_ai(
                     return platform_name, cached, None
 
             print(f"[AI Crawl Tool] Searching {platform_name}...")
-            # try to pass optional headless kwarg to crawler if supported.
-            # X and TikTok block anonymous scraping, so they always need a
             crawler_opts = {}
-            if platform_name == "tiktok":
-                crawler_opts["use_headless"] = kwargs.get("use_headless", True)
-            else:
-                crawler_opts["use_headless"] = kwargs.get("use_headless", False)
-
+            crawler_opts["use_headless"] = kwargs.get("use_headless", platform_name == "tiktok")
             if platform_name == "youtube":
-                crawler_opts["use_api"] = kwargs.get("use_youtube_api", False)
-                crawler_opts["mode"] = kwargs.get("youtube_mode", "all")
+                crawler_opts["use_api"] = use_yt_api
+                crawler_opts["mode"] = yt_mode
                 crawler_opts["use_headless"] = kwargs.get("use_headless", True)
 
             # Chọn bộ từ khóa phù hợp theo loại nền tảng
@@ -394,8 +381,6 @@ def crawl_livestreams_with_ai(
     events = filter_and_score_events(events, analysis, goal=goal)
 
     used_fallback = mode == "fallback_only"
-    # If AI-first mode produced candidates but filtering removed them,
-    # run fallback queries to try again.
     if mode == "ai_then_fallback" and not events:
         used_fallback = True
         fallback_analysis = build_fallback(goal)
@@ -421,6 +406,11 @@ def crawl_livestreams_with_ai(
 
         # Lọc sự kiện cũ/sai trạng thái
         events = time_filter_events(events)
+
+        if yt_mode == "live":
+            events = [e for e in events if e.get("status") == "LIVE"]
+        elif yt_mode == "upcoming":
+            events = [e for e in events if e.get("status") == "UPCOMING"]
 
         events = filter_and_score_events(events, analysis, goal=goal)
 

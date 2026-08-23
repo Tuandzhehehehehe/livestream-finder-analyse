@@ -3,12 +3,16 @@ database/db.py — Database Engine & Table Schema Definitions
 ============================================================
 Chứa toàn bộ schema cho hai database của hệ thống:
 
-  [livestream.db]  — Dữ liệu livestream events (crawl & phân tích)
+  [livestream.db]        — Dữ liệu livestream events (crawl & phân tích)
     • livestreams
 
-  [channel_info.db] — Thông tin kênh / creator (xếp hạng & đề xuất theo khu vực)
+  [channel_info.db]      — Thông tin kênh / creator (xếp hạng & đề xuất theo khu vực)
     • channel_profiles
     • follower_snapshots
+
+Đường dẫn DB được đọc từ biến môi trường:
+  DATABASE_URL         (mặc định: sqlite:///livestream.db)
+  CHANNEL_DATABASE_URL (mặc định: sqlite:///channel_info.db)
 """
 
 import os
@@ -55,12 +59,17 @@ livestreams = Table(
 
 metadata.create_all(engine)
 
-# ── Engine: channel_info.db ───────────────────────────────────────────────────
-_CHANNEL_DB_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
-    "channel_info.db",
-)
-channel_engine   = create_engine(f"sqlite:///{_CHANNEL_DB_PATH}", echo=False)
+# ── Engine: channel_info.db ─────────────────────────────────────────────────────
+_CHANNEL_DB_URL = os.getenv("CHANNEL_DATABASE_URL", "sqlite:///channel_info.db")
+
+# SQLite relative path (sqlite:///foo.db) → resolve tương đối với project root
+# để nhất quán dù Streamlit được khởi động từ thư mục nào.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _CHANNEL_DB_URL.startswith("sqlite:///") and not _CHANNEL_DB_URL.startswith("sqlite:////"):
+    _db_filename = _CHANNEL_DB_URL[len("sqlite:///"):]
+    _CHANNEL_DB_URL = "sqlite:///" + os.path.join(_PROJECT_ROOT, _db_filename)
+
+channel_engine   = create_engine(_CHANNEL_DB_URL, echo=False)
 channel_metadata = MetaData()
 
 # ── Table: channel_profiles ────────────────────────────────────────────────────

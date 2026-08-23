@@ -7,9 +7,10 @@ Tránh duplicate code giữa các file crawler.
 from __future__ import annotations
 
 import re
+import ssl
 import time
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Callable, Any
 
 
 _EMAIL_RE  = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
@@ -127,38 +128,89 @@ def first_selector(soup, selectors: list[str], attr: str | None = None) -> str:
     return ""
 
 
+# ── Lỗi SSL / mạng thường gặp khi crawl YouTube ──────────────────────────────
+_SSL_ERRORS = (
+    "UNEXPECTED_EOF_WHILE_READING",
+    "EOF occurred in violation of protocol",
+    "Connection reset by peer",
+    "Remote end closed connection",
+    "Connection aborted",
+    "timed out",
+)
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """Kiểm tra xem lỗi có phải lỗi mạng/SSL tạm thời không (đáng thử lại)."""
+    msg = str(exc)
+    return any(e in msg for e in _SSL_ERRORS) or isinstance(exc, (ssl.SSLError, OSError))
+
+
+def with_retry(
+    fn: Callable,
+    *args: Any,
+    max_retries: int = 3,
+    base_delay: float = 2.0,
+    label: str = "",
+    **kwargs: Any,
+) -> Any:
+    """
+    Gọi fn(*args, **kwargs) với tự động retry khi gặp lỗi SSL/mạng.
+    Dùng exponential backoff: 2s → 4s → 8s.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, max_retries + 2):  # 1 lần thử + max_retries lần retry
+        try:
+            return fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if attempt <= max_retries and _is_transient_error(exc):
+                wait = base_delay * (2 ** (attempt - 1))  # 2, 4, 8 giây
+                tag = f"[{label}] " if label else ""
+                print(f"{tag}[WARN] Lỗi SSL/mạng (lần {attempt}/{max_retries}): {exc}")
+                print(f"{tag}[RETRY] Thử lại sau {wait:.0f}s...")
+                time.sleep(wait)
+            else:
+                raise
+    raise last_exc  # không bao giờ tới đây, nhưng để type-checker hài lòng
+
+
 def bulk_crawl(
     crawl_fn,
     urls: list[str],
     label: str,
     delay: float = 2.0,
+    retry: int = 3,
+    retry_base_delay: float = 2.0,
     **kwargs,
 ) -> list[dict]:
     """
     Generic bulk crawl loop được dùng bởi tất cả *_channels_bulk functions.
-
-    Args:
-        crawl_fn: hàm crawl đơn (url, **kwargs) → dict | None
-        urls:     danh sách URL
-        label:    prefix log (VD: "YouTube", "TikTok")
-        delay:    giây chờ giữa các request
     """
     results = []
     total = len(urls)
     for i, url in enumerate(urls, 1):
         print(f"[{label}] ({i}/{total}) {url}")
         try:
-            data = crawl_fn(url, **kwargs)
+            data = with_retry(
+                crawl_fn, url,
+                max_retries=retry,
+                base_delay=retry_base_delay,
+                label=label,
+                **kwargs,
+            )
         except Exception as e:
-            print(f"[{label}] ❌ Lỗi: {e}")
+            print(f"[{label}] [ERR] Lỗi (đã thử {retry + 1} lần): {e}")
             data = None
         if data:
             results.append(data)
             name = data.get("channel_name") or data.get("username") or url
             fc   = data.get("follower_count", 0)
-            print(f"[{label}] ✅ {name} — {fc:,}")
+            try:
+                print(f"[{label}] [OK] {name} — {fc:,}")
+            except Exception:
+                print(f"[{label}] [OK] {url} — {fc:,}")
         else:
-            print(f"[{label}] ⚠ Bỏ qua: {url}")
+            print(f"[{label}] [SKIP] Bỏ qua: {url}")
         if i < total and delay > 0:
             time.sleep(delay)
     return results

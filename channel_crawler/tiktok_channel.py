@@ -28,7 +28,14 @@ _API_PATHS  = (
 
 def _username(url: str) -> Optional[str]:
     m = re.search(r"tiktok\.com/@([^/?&#]+)", url)
-    return m.group(1).lstrip("@") if m else None
+    if m:
+        return m.group(1).lstrip("@")
+    clean = url.strip()
+    if clean.startswith("@"):
+        return clean.lstrip("@")
+    if "/" not in clean and "." not in clean and clean:
+        return clean
+    return None
 
 
 def _parse_user(payload: dict) -> Optional[dict]:
