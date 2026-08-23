@@ -432,29 +432,37 @@ def delete_channel(channel_url: str) -> bool:
         return False
 
 
+ALLOWED_PLATFORMS_LOWER = ["youtube", "tiktok", "web"]
+
+
 def get_channel_summary() -> dict:
     """
-    Tổng hợp thống kê toàn bộ kênh trong channel_info.db.
+    Tổng hợp thống kê toàn bộ kênh trong channel_info.db (chỉ tính các platform hợp lệ).
 
     Returns:
         dict với các key: total_channels, by_platform, avg_cas,
         top_cas, channels_with_score, latest_crawled_at.
     """
+    base_where = sqlfunc.lower(channel_profiles.c.platform).in_(ALLOWED_PLATFORMS_LOWER)
+
     with engine.connect() as conn:
-        total = conn.execute(select(sqlfunc.count(channel_profiles.c.id))).scalar() or 0
+        total = conn.execute(select(sqlfunc.count(channel_profiles.c.id)).where(base_where)).scalar() or 0
 
         rows = conn.execute(
             select(channel_profiles.c.platform, sqlfunc.count(channel_profiles.c.id))
+            .where(base_where)
             .group_by(channel_profiles.c.platform)
         ).fetchall()
         by_platform = {(r[0] or "unknown"): r[1] for r in rows}
 
-        avg_cas = conn.execute(select(sqlfunc.avg(channel_profiles.c.cas))).scalar()
-        top_cas = conn.execute(select(sqlfunc.max(channel_profiles.c.cas))).scalar()
+        avg_cas = conn.execute(select(sqlfunc.avg(channel_profiles.c.cas)).where(base_where)).scalar()
+        top_cas = conn.execute(select(sqlfunc.max(channel_profiles.c.cas)).where(base_where)).scalar()
         with_score = conn.execute(
-            select(sqlfunc.count(channel_profiles.c.id)).where(channel_profiles.c.cas.isnot(None))
+            select(sqlfunc.count(channel_profiles.c.id))
+            .where(base_where)
+            .where(channel_profiles.c.cas.isnot(None))
         ).scalar() or 0
-        latest = conn.execute(select(sqlfunc.max(channel_profiles.c.crawled_at))).scalar()
+        latest = conn.execute(select(sqlfunc.max(channel_profiles.c.crawled_at)).where(base_where)).scalar()
 
     return {
         "total_channels":    total,
